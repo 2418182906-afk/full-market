@@ -1,15 +1,14 @@
 
 # -*- coding: utf-8 -*-
-"""沪深交易所宽基ETF全量份额采集与系列聚合。
+"""沪深交易所指定宽基ETF份额采集与系列聚合。
 
+仅追踪固定代码白名单中的35只ETF。
 份额单位统一为亿份；原始缓存保留万份。
-分类以基金简称、代码白名单及实际指数名称为依据。
-无法可靠识别的ETF不强行归类。
+分类完全依据ETF代码，不依赖基金简称或关键词。
 """
 
 import json
 import os
-import re
 import time
 from datetime import date, datetime, timedelta
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -23,8 +22,8 @@ CACHE_PATH = os.path.join(DATA_DIR, 'broad_etf_cache.json')
 
 START_DATE = '2024-06-03'
 
-# 修改分类规则后递增版本号，触发历史数据重新采集
-CLASSIFICATION_VERSION = 2
+# 白名单更新后递增版本号，触发历史数据重新采集
+CLASSIFICATION_VERSION = 4
 
 SSE_URL = 'https://query.sse.com.cn/commonQuery.do'
 SZSE_URL = 'https://www.szse.cn/api/report/ShowReport/data'
@@ -51,214 +50,184 @@ GROUP_IDS = {g['id'] for g in GROUPS}
 
 
 # ============================================================
-# 一、代码白名单
+# 一、固定代码白名单：共35只
 # ============================================================
 
-# 对简称没有完整写出指数名称的产品进行补充识别。
-# 这些代码来自本项目提供的候选清单。
-# 只有经过确认的代码才能放入这里。
+CODE_LISTS = {
 
-CODE_OVERRIDES = {
-    '159678': '500',       # 500增强ETF博时
-    '561780': '1000',      # 1000增强ETF博时
-    '159685': '1000',      # 1000增强ETF天弘
-    '159676': 'CHINEXT',   # 创业板增强ETF富国
+    # 上证50：3只
+    '50': [
+        '510100',
+        '510050',
+        '530000',
+    ],
+
+    # 沪深300：6只
+    '300': [
+        '510300',
+        '510330',
+        '159919',
+        '510310',
+        '515330',
+        '510360',
+    ],
+
+    # 中证500：3只
+    '500': [
+        '510500',
+        '159922',
+        '512500',
+    ],
+
+    # 中证1000：5只
+    '1000': [
+        '512100',
+        '159845',
+        '560010',
+        '159629',
+        '159633',
+    ],
+
+    # 中证A500：8只
+    'A500': [
+        '563360',
+        '159352',
+        '159361',
+        '159338',
+        '512050',
+        '563800',
+        '159351',
+        '563220',
+    ],
+
+    # 科创宽基：5只
+    'STAR': [
+        '588080',
+        '588050',
+        '588000',
+        '588060',
+        '588220',
+    ],
+
+    # 创业板：5只
+    'CHINEXT': [
+        '159915',
+        '159949',
+        '159952',
+        '159977',
+        '159682',
+    ],
 }
 
 
-# ============================================================
-# 二、行业主题排除规则
-# ============================================================
+# 各系列预期数量
+EXPECTED_COUNTS = {
+    '50': 3,
+    '300': 6,
+    '500': 3,
+    '1000': 5,
+    'A500': 8,
+    'STAR': 5,
+    'CHINEXT': 5,
+}
 
-# 命中这些关键词的产品不进入七大宽基统计。
-# 注意：增强、红利、价值、成长、低波、现金流、ESG
-# 本身不是排除条件。
+EXPECTED_TOTAL = 35
 
-INDUSTRY_KEYWORDS = (
-    '芯片',
-    '半导体',
-    '新材料',
-    '人工智能',
-    '算力',
-    '软件',
-    '电池',
-    '新能源',
-    '金融科技',
-    '创新药',
-    '医疗',
-    '医药',
-    '证券',
-    '银行',
-    '消费',
-    '食品',
-    '酒',
-    '军工',
-    '机器人',
-    '光伏',
-    '稀土',
-    '有色',
-    '煤炭',
-    '钢铁',
-    '通信',
-    '传媒',
-    '云计算',
-    '数据中心',
-    '生物科技',
-    '生物医药',
-    '房地产',
-    '汽车',
-    '储能',
-    '家电',
-    '农业',
-    '畜牧',
-    '旅游',
-    '游戏',
-    '教育',
-    '环保',
-    '基建',
-    '电力',
-    '化工',
-    '建材',
-    '能源',
-    '油气',
-    '港股',
-    '恒生',
-    '纳指',
-    '标普',
-    '日经',
-    '德国',
-    '法国',
-    '海外',
-    '全球',
-)
+
+def _build_code_map():
+    """构建代码到系列的映射，并验证白名单。"""
+
+    code_map = {}
+
+    for group_id, codes in CODE_LISTS.items():
+
+        if group_id not in GROUP_IDS:
+            raise ValueError(
+                f'白名单包含未知系列：{group_id}'
+            )
+
+        if len(codes) != EXPECTED_COUNTS[group_id]:
+            raise ValueError(
+                f'{group_id}白名单数量错误：'
+                f'预期{EXPECTED_COUNTS[group_id]}，'
+                f'实际{len(codes)}'
+            )
+
+        for code in codes:
+
+            code = str(code).strip().zfill(6)
+
+            if len(code) != 6 or not code.isdigit():
+                raise ValueError(
+                    f'ETF代码格式错误：{code}'
+                )
+
+            if code in code_map:
+                raise ValueError(
+                    f'ETF代码重复：{code}'
+                )
+
+            code_map[code] = group_id
+
+    if len(code_map) != EXPECTED_TOTAL:
+        raise ValueError(
+            f'白名单总数错误：预期{EXPECTED_TOTAL}，'
+            f'实际{len(code_map)}'
+        )
+
+    return code_map
+
+
+CODE_TO_GROUP = _build_code_map()
+ALL_CODES = set(CODE_TO_GROUP)
 
 
 # ============================================================
-# 三、ETF 分类函数
+# 二、ETF分类函数
 # ============================================================
 
-def classify(name, code=None):
+def classify(name=None, code=None):
     """
-    返回七大系列ID；无法可靠识别时返回None。
+    仅根据ETF代码确定所属系列。
 
-    分类原则：
-    1. 优先排除行业主题和跨市场指数。
-    2. 代码白名单只补充简称不完整的产品。
-    3. 宽基及其策略型产品可以纳入。
-    4. 不把创业板200、创业板综指纳入创业板系列。
-    5. 科创创业50、双创50不纳入科创宽基。
+    白名单内：返回对应系列ID。
+    白名单外：返回None。
+
+    name参数仅为兼容原有调用方式保留，
+    不参与分类判断。
     """
-
-    n = str(name or '').strip()
-    n = n.replace(' ', '').replace('（', '(').replace('）', ')')
-    n = n.replace('－', '-').replace('—', '-')
 
     code = str(code or '').strip().zfill(6)
 
-    if not n:
+    if len(code) != 6 or not code.isdigit():
         return None
 
-    # 1. 优先排除跨市场指数
-    cross_market_keywords = (
-        '科创创业',
-        '双创50',
-        '双创',
-    )
-
-    if any(k in n for k in cross_market_keywords):
-        return None
-
-    # 2. 排除行业主题ETF
-    if any(k in n for k in INDUSTRY_KEYWORDS):
-        return None
-
-    # 3. 排除不属于本次目标范围的创业板指数
-    if any(k in n for k in (
-        '创业板200',
-        '创业板综',
-        '创业板综指',
-    )):
-        return None
-
-    # 4. 排除不属于本次目标范围的科创指数
-    if '科创成长' in n:
-        return None
-
-    # 5. 对简称不完整的已确认产品进行代码补充
-    if code in CODE_OVERRIDES:
-        return CODE_OVERRIDES[code]
-
-    # 6. 中证A500
-    if '中证A500' in n or 'A500' in n:
-        return 'A500'
-
-    # 7. 中证1000
-    if (
-        '中证1000' in n
-        or '1000增强' in n
-    ):
-        return '1000'
-
-    # 8. 中证500
-    if (
-        '中证500' in n
-        or '500增强' in n
-    ):
-        return '500'
-
-    # 9. 沪深300
-    if '沪深300' in n:
-        return '300'
-
-    # 10. 上证50
-    if '上证50' in n:
-        return '50'
-
-    # 11. 科创宽基
-    # 只保留明确的科创宽基指数及对应增强产品。
-    if any(k in n for k in (
-        '科创50',
-        '科创100',
-        '科创200',
-        '科创综指',
-        '科创板50',
-        '科创板100',
-        '科创板200',
-    )):
-        return 'STAR'
-
-    # 12. 创业板
-    # 创业板指、创业板50及明确对应的宽基增强产品。
-    if any(k in n for k in (
-        '创业板50',
-        '创业板指',
-        '创业板指数',
-    )):
-        return 'CHINEXT'
-
-    # 仅有创业板ETF字样时，纳入原始候选清单中的普通创业板ETF。
-    # 不允许创业板200、创业板综指或行业主题产品进入。
-    if '创业板ETF' in n:
-        return 'CHINEXT'
-
-    return None
+    return CODE_TO_GROUP.get(code)
 
 
 # ============================================================
-# 四、通用数据处理
+# 三、通用数据处理
 # ============================================================
 
 def _num(v):
+
     if v is None:
         return None
 
     try:
         return float(str(v).replace(',', '').strip())
+
     except Exception:
         return None
 
 
-def _request_json(url, params, referer=None, verify=True):
+def _request_json(
+    url,
+    params,
+    referer=None,
+    verify=True
+):
+
     h = dict(HEADERS)
 
     if referer:
@@ -267,7 +236,9 @@ def _request_json(url, params, referer=None, verify=True):
     last = None
 
     for k in range(4):
+
         try:
+
             r = requests.get(
                 url,
                 params=params,
@@ -280,6 +251,7 @@ def _request_json(url, params, referer=None, verify=True):
             return r.json()
 
         except Exception as e:
+
             last = e
             time.sleep(0.6 * (k + 1))
 
@@ -287,7 +259,7 @@ def _request_json(url, params, referer=None, verify=True):
 
 
 # ============================================================
-# 五、上海证券交易所数据
+# 四、上海证券交易所数据
 # ============================================================
 
 def _sse_date(day):
@@ -308,7 +280,14 @@ def _sse_date(day):
 
     for x in rows:
 
-        code = str(x.get('SEC_CODE') or '').zfill(6)
+        code = str(
+            x.get('SEC_CODE') or ''
+        ).strip().zfill(6)
+
+        group = classify(code=code)
+
+        if group not in GROUP_IDS:
+            continue
 
         name = (
             x.get('FUND_EXPANSION_ABBR')
@@ -319,28 +298,22 @@ def _sse_date(day):
 
         shares = _num(x.get('TOT_VOL'))
 
-        group = classify(name, code)
+        if shares is None or shares < 0:
+            continue
 
-        if (
-            len(code) == 6
-            and shares is not None
-            and shares >= 0
-            and group in GROUP_IDS
-        ):
-
-            out[code] = {
-                'code': code,
-                'name': name,
-                'exchange': 'SSE',
-                'group': group,
-                'shares_10k': shares
-            }
+        out[code] = {
+            'code': code,
+            'name': name,
+            'exchange': 'SSE',
+            'group': group,
+            'shares_10k': shares
+        }
 
     return out
 
 
 # ============================================================
-# 六、深圳证券交易所数据
+# 五、深圳证券交易所数据
 # ============================================================
 
 def _extract_sz_rows(js):
@@ -353,19 +326,28 @@ def _extract_sz_rows(js):
                 isinstance(item, dict)
                 and isinstance(item.get('data'), list)
             ):
-                return item['data'], item.get('metadata', {})
+
+                return (
+                    item['data'],
+                    item.get('metadata', {})
+                )
 
         return [], {}
 
     if isinstance(js, dict):
 
         if isinstance(js.get('data'), list):
-            return js['data'], js.get('metadata', {})
+
+            return (
+                js['data'],
+                js.get('metadata', {})
+            )
 
         if (
             isinstance(js.get('data'), dict)
             and isinstance(js['data'].get('data'), list)
         ):
+
             return (
                 js['data']['data'],
                 js['data'].get('metadata', {})
@@ -440,28 +422,49 @@ def _record_date(row):
 
 def _szse_history(start, end):
 
+    """
+    按90天窗口采集深交所历史数据。
+
+    返回：
+    1. by_date：采集到的数据
+    2. failed_ranges：请求失败的日期区间
+    3. successful_ranges：请求成功的日期区间
+    """
+
     by_date = {}
     failed_ranges = []
+    successful_ranges = []
 
     cur = date.fromisoformat(start)
     end_d = date.fromisoformat(end)
 
     while cur <= end_d:
 
-        stop = min(cur + timedelta(days=89), end_d)
+        stop = min(
+            cur + timedelta(days=89),
+            end_d
+        )
+
+        range_start = cur.isoformat()
+        range_end = stop.isoformat()
 
         try:
 
             rows = _szse_window(
-                cur.isoformat(),
-                stop.isoformat()
+                range_start,
+                range_end
             )
+
+            successful_ranges.append([
+                range_start,
+                range_end
+            ])
 
         except Exception:
 
             failed_ranges.append([
-                cur.isoformat(),
-                stop.isoformat()
+                range_start,
+                range_end
             ])
 
             rows = []
@@ -475,7 +478,12 @@ def _szse_history(start, end):
                 or x.get('fundCode')
                 or x.get('证券代码')
                 or ''
-            ).zfill(6)
+            ).strip().zfill(6)
+
+            group = classify(code=code)
+
+            if group not in GROUP_IDS:
+                continue
 
             name = (
                 x.get('security_short_name')
@@ -490,43 +498,40 @@ def _szse_history(start, end):
                 or x.get('基金规模')
             )
 
-            group = classify(name, code)
-
             if (
-                len(code) == 6
-                and len(day) == 10
-                and shares is not None
-                and group in GROUP_IDS
+                len(day) != 10
+                or shares is None
+                or shares < 0
             ):
+                continue
 
-                by_date.setdefault(day, {})[code] = {
-                    'code': code,
-                    'name': name,
-                    'exchange': 'SZSE',
-                    'group': group,
-                    'shares_10k': shares
-                }
+            by_date.setdefault(day, {})[code] = {
+                'code': code,
+                'name': name,
+                'exchange': 'SZSE',
+                'group': group,
+                'shares_10k': shares
+            }
 
         cur = stop + timedelta(days=1)
 
         time.sleep(0.35)
 
-    return by_date, failed_ranges
+    return by_date, failed_ranges, successful_ranges
 
 
 # ============================================================
-# 七、历史缓存重新分类
+# 六、历史缓存重新分类
 # ============================================================
 
 def _reclassify_cache(old_by_date):
 
-    """
-    按新规则重新整理历史缓存。
-    旧缓存中已有的记录重新判断分类。
-    无法识别的记录不进入七大系列。
-    """
+    """使用当前35只ETF白名单重新整理历史缓存。"""
 
     result = {}
+
+    if not isinstance(old_by_date, dict):
+        return result
 
     for day, rows in old_by_date.items():
 
@@ -540,18 +545,19 @@ def _reclassify_cache(old_by_date):
             if not isinstance(rec, dict):
                 continue
 
-            name = rec.get('name', '')
+            code = str(code).strip().zfill(6)
 
-            group = classify(name, code)
+            group = classify(code=code)
 
             if group not in GROUP_IDS:
                 continue
 
             new_rec = dict(rec)
-            new_rec['code'] = str(code).zfill(6)
+
+            new_rec['code'] = code
             new_rec['group'] = group
 
-            new_rows[str(code).zfill(6)] = new_rec
+            new_rows[code] = new_rec
 
         if new_rows:
             result[day] = new_rows
@@ -560,7 +566,7 @@ def _reclassify_cache(old_by_date):
 
 
 # ============================================================
-# 八、同步数据
+# 七、同步数据
 # ============================================================
 
 def sync_broad_market(force_full=False):
@@ -586,10 +592,9 @@ def sync_broad_market(force_full=False):
 
     old_by_date = cache.get('by_date', {})
 
-    # 重新分类已有缓存
+    # 按最新白名单重新整理旧缓存
     reclassified = _reclassify_cache(old_by_date)
 
-    # 分类版本变化时，重新采集历史数据
     version_changed = (
         cache.get('classification_version')
         != CLASSIFICATION_VERSION
@@ -600,7 +605,7 @@ def sync_broad_market(force_full=False):
     if full_refresh:
 
         print(
-            '检测到分类规则更新，开始重新采集历史ETF数据。',
+            '检测到白名单更新，开始重新采集指定35只ETF历史数据。',
             flush=True
         )
 
@@ -633,8 +638,10 @@ def sync_broad_market(force_full=False):
         else set()
     )
 
+    sse_failed_dates = set()
+
     # --------------------------------------------------------
-    # SSE：按交易日期查询
+    # SSE：按日历日期查询
     # --------------------------------------------------------
 
     days = []
@@ -659,7 +666,7 @@ def sync_broad_market(force_full=False):
     workers = 8 if len(days) > 30 else 4
 
     print(
-        f'开始采集上交所数据，共 {len(days)} 个日历日期。',
+        f'开始采集上交所数据，共{len(days)}个日历日期。',
         flush=True
     )
 
@@ -678,18 +685,34 @@ def sync_broad_market(force_full=False):
 
             completed += 1
 
-            if rows:
+            if err is None:
 
-                by_date.setdefault(day, {}).update(rows)
+                # 请求成功时，先清除当天旧的SSE记录。
+                # 即使本次没有披露数据，也不保留过期记录。
+                existing = by_date.setdefault(day, {})
+
+                for code in list(existing):
+
+                    if existing[code].get('exchange') == 'SSE':
+                        existing.pop(code, None)
+
+                existing.update(rows)
 
                 partial_dates.discard(day)
 
-            elif err:
+            else:
 
-                errors.append('SSE ' + day + ': ' + err)
+                errors.append(
+                    'SSE ' + day + ': ' + err
+                )
+
                 partial_dates.add(day)
+                sse_failed_dates.add(day)
 
-            if completed % 20 == 0 or completed == len(days):
+            if (
+                completed % 20 == 0
+                or completed == len(days)
+            ):
 
                 print(
                     f'SSE进度：{completed}/{len(days)}',
@@ -700,21 +723,46 @@ def sync_broad_market(force_full=False):
     # SZSE：按90天时间窗口查询
     # --------------------------------------------------------
 
-    print('开始采集深交所历史数据。', flush=True)
+    print(
+        '开始采集深交所历史数据。',
+        flush=True
+    )
 
     try:
 
-        sz, failed_ranges = _szse_history(
+        (
+            sz,
+            failed_ranges,
+            successful_ranges
+        ) = _szse_history(
             start.isoformat(),
             end.isoformat()
         )
 
+        # 成功区间清除旧的SZSE记录
+        for a, b in successful_ranges:
+
+            d = date.fromisoformat(a)
+            last = date.fromisoformat(b)
+
+            while d <= last:
+
+                day = d.isoformat()
+                existing = by_date.get(day, {})
+
+                for code in list(existing):
+
+                    if existing[code].get('exchange') == 'SZSE':
+                        existing.pop(code, None)
+
+                d += timedelta(days=1)
+
+        # 写入本次成功采集的数据
         for day, rows in sz.items():
 
             by_date.setdefault(day, {}).update(rows)
 
-            partial_dates.discard(day)
-
+        # 标记深交所请求失败日期
         for a, b in failed_ranges:
 
             errors.append(
@@ -726,12 +774,31 @@ def sync_broad_market(force_full=False):
 
             while d <= last:
 
-                partial_dates.add(d.isoformat())
+                day = d.isoformat()
+
+                partial_dates.add(day)
+                d += timedelta(days=1)
+
+        # 成功日期只有在SSE也成功时才解除异常标记
+        for a, b in successful_ranges:
+
+            d = date.fromisoformat(a)
+            last = date.fromisoformat(b)
+
+            while d <= last:
+
+                day = d.isoformat()
+
+                if day not in sse_failed_dates:
+                    partial_dates.discard(day)
+
                 d += timedelta(days=1)
 
     except Exception as e:
 
-        errors.append('SZSE history: ' + str(e))
+        errors.append(
+            'SZSE history: ' + str(e)
+        )
 
         d = start
 
@@ -741,7 +808,7 @@ def sync_broad_market(force_full=False):
             d += timedelta(days=1)
 
     # --------------------------------------------------------
-    # 如果某些日期请求失败，保留这些日期的旧缓存
+    # 请求失败的日期保留旧缓存
     # --------------------------------------------------------
 
     if full_refresh:
@@ -755,18 +822,36 @@ def sync_broad_market(force_full=False):
                 by_date.setdefault(day, {}).update(old_rows)
 
     # --------------------------------------------------------
-    # 最终清理
+    # 最终清理：严格执行35只ETF白名单
     # --------------------------------------------------------
 
     clean = {}
 
     for day, rows in by_date.items():
 
-        selected = {
-            c: r
-            for c, r in rows.items()
-            if r.get('group') in GROUP_IDS
-        }
+        if not isinstance(rows, dict):
+            continue
+
+        selected = {}
+
+        for code, rec in rows.items():
+
+            if not isinstance(rec, dict):
+                continue
+
+            code = str(code).strip().zfill(6)
+
+            group = classify(code=code)
+
+            if group not in GROUP_IDS:
+                continue
+
+            new_rec = dict(rec)
+
+            new_rec['code'] = code
+            new_rec['group'] = group
+
+            selected[code] = new_rec
 
         if selected:
             clean[day] = selected
@@ -802,7 +887,12 @@ def sync_broad_market(force_full=False):
         )
 
     print(
-        f'数据采集完成：{len(clean)} 个有数据日期。',
+        f'数据采集完成：{len(clean)}个有数据日期。',
+        flush=True
+    )
+
+    print(
+        f'白名单ETF数量：{len(ALL_CODES)}',
         flush=True
     )
 
@@ -820,7 +910,7 @@ def sync_broad_market(force_full=False):
 
 
 # ============================================================
-# 九、生成网页数据
+# 八、生成网页数据
 # ============================================================
 
 def build_broad_payload(cache):
@@ -829,9 +919,17 @@ def build_broad_payload(cache):
 
     groups = []
 
-    all_codes = set()
+    all_observed_codes = set()
+
+    expected_counts = {}
 
     for g in GROUPS:
+
+        expected_codes = sorted(
+            CODE_LISTS[g['id']]
+        )
+
+        expected_counts[g['id']] = len(expected_codes)
 
         members = {}
 
@@ -839,12 +937,21 @@ def build_broad_payload(cache):
 
             for code, rec in cache['by_date'].get(day, {}).items():
 
-                if rec.get('group') == g['id']:
+                code = str(code).zfill(6)
+
+                if (
+                    rec.get('group') == g['id']
+                    and code in CODE_TO_GROUP
+                ):
 
                     members[code] = rec
-                    all_codes.add(code)
+                    all_observed_codes.add(code)
 
-        codes = sorted(members)
+        observed_codes = sorted(members)
+
+        missing_codes = sorted(
+            set(expected_codes) - set(observed_codes)
+        )
 
         series = []
         counts = []
@@ -854,15 +961,21 @@ def build_broad_payload(cache):
 
             rows = [
                 r
-                for r in cache['by_date'].get(day, {}).values()
-                if r.get('group') == g['id']
+                for code, r in cache['by_date'].get(day, {}).items()
+                if (
+                    str(code).zfill(6) in CODE_TO_GROUP
+                    and CODE_TO_GROUP[str(code).zfill(6)] == g['id']
+                )
             ]
 
             if rows:
 
                 series.append(
                     round(
-                        sum(r['shares_10k'] for r in rows) / 10000,
+                        sum(
+                            r['shares_10k']
+                            for r in rows
+                        ) / 10000,
                         4
                     )
                 )
@@ -916,7 +1029,12 @@ def build_broad_payload(cache):
 
             for code, rec in cache['by_date'].get(day, {}).items():
 
-                if rec.get('group') == g['id']:
+                code = str(code).zfill(6)
+
+                if (
+                    code in CODE_TO_GROUP
+                    and CODE_TO_GROUP[code] == g['id']
+                ):
 
                     details.append({
                         'code': code,
@@ -935,16 +1053,33 @@ def build_broad_payload(cache):
 
         groups.append({
             **g,
-            'codes': codes,
+
+            # 历史上曾经采集到的代码
+            'codes': observed_codes,
+
+            # 白名单预期数量及代码
+            'expected_count': len(expected_codes),
+            'expected_codes': expected_codes,
+
+            # 历史上曾经采集到的代码数量
+            'observed_count': len(observed_codes),
+
+            # 历史上从未采集到的代码
+            'missing_codes': missing_codes,
+
+            # 最新披露日期实际数据条数
             'count': len(details),
+
             'series': series,
             'counts': counts,
             'latest': latest,
+
             'change1': (
                 round(latest - prev, 4)
                 if latest is not None and prev is not None
                 else None
             ),
+
             'details': details,
             'missing_days': missing
         })
@@ -956,19 +1091,25 @@ def build_broad_payload(cache):
     total_series = []
     total_count = []
 
-    for i, day in enumerate(dates):
+    for day in dates:
 
         rows = [
             r
-            for r in cache['by_date'].get(day, {}).values()
-            if r.get('group') in GROUP_IDS
+            for code, r in cache['by_date'].get(day, {}).items()
+            if (
+                str(code).zfill(6) in CODE_TO_GROUP
+                and r.get('group') in GROUP_IDS
+            )
         ]
 
         if rows:
 
             total_series.append(
                 round(
-                    sum(r['shares_10k'] for r in rows) / 10000,
+                    sum(
+                        r['shares_10k']
+                        for r in rows
+                    ) / 10000,
                     4
                 )
             )
@@ -1013,31 +1154,56 @@ def build_broad_payload(cache):
         else None
     )
 
+    # --------------------------------------------------------
+    # 总体白名单统计
+    # --------------------------------------------------------
+
+    observed_total = len(all_observed_codes)
+
+    missing_total_codes = sorted(
+        ALL_CODES - all_observed_codes
+    )
+
     return {
         'dates': dates,
         'groups': groups,
+
         'total_series': total_series,
         'total_count': total_count,
+
         'total_latest': latest,
+
         'total_change1': (
             round(latest - prev, 4)
             if latest is not None and prev is not None
             else None
         ),
+
+        # 白名单总体统计
+        'expected_total': EXPECTED_TOTAL,
+        'observed_total': observed_total,
+        'missing_codes': missing_total_codes,
+        'expected_counts': expected_counts,
+
         'updated_at': cache.get('updated_at'),
         'source': cache.get('source'),
         'errors': cache.get('errors', []),
         'partial_dates': cache.get('partial_dates', []),
         'start_date': cache.get('start_date'),
         'end_date': cache.get('end_date'),
+
         'note': (
-            '单位：亿份。仅统计名称可识别的指定宽基ETF；'
-            '增强、价值、成长、红利、低波、现金流及ESG等'
-            '策略产品在符合对应指数条件时纳入。'
-            '行业主题、创业板200、创业板综指、'
-            '科创创业50及双创50不纳入。'
+            '单位：亿份。'
+            '本页面仅统计固定代码白名单中的35只指定宽基ETF。'
+            '七大系列分别为上证50、沪深300、中证500、'
+            '中证1000、中证A500、科创宽基及创业板。'
+            '不自动纳入同系列其他ETF。'
+            '创业板200、创业板综指、科创创业50、'
+            '双创50及行业主题ETF不纳入。'
+            '分类完全依据ETF代码，不依赖基金简称。'
+            '实际披露数量以交易所数据为准。'
             '缺失日不以前值填充。'
-            '全市场合计指本页七个系列合计，'
+            '全市场合计指本页35只指定ETF合计，'
             '不代表全部类型ETF。'
         )
     }
