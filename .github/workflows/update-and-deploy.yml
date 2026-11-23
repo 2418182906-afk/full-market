@@ -1,0 +1,69 @@
+name: Update ETF data and deploy website
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "50 15 * * 1-5"
+    - cron: "40 0 * * 2-6"
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: etf-pages-deployment
+  cancel-in-progress: false
+
+jobs:
+  update-and-deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Update ETF data and regenerate HTML
+        run: python update_etf_tracker.py
+
+      - name: Save updated data and generated HTML
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/etf_share_cache.json data/broad_etf_cache.json etf_share_tracker.html
+          if ! git diff --cached --quiet; then
+            git commit -m "chore: update ETF data"
+            git push
+          else
+            echo "No data changes to commit."
+          fi
+
+      - name: Prepare static website
+        run: |
+          mkdir -p site
+          cp etf_share_tracker.html site/index.html
+          cp echarts.min.js site/echarts.min.js
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload website artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: site
+
+      - name: Deploy website
+        id: deployment
+        uses: actions/deploy-pages@v4
