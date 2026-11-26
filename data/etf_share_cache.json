@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-11-26 15:20:15",
+  "updated_at": "2026-11-26 15:25:56",
   "start_date": "2024-06-03",
   "end_date": "2026-11-26",
   "total_days": 604,
@@ -11709,10 +11709,8 @@
         "observed_count": 6,
         "missing_codes": [],
         "count": 6,
-        "actual_count": 5,
-        "latest_missing_codes": [
-          "159919"
-        ],
+        "actual_count": 6,
+        "latest_missing_codes": [],
         "series": [
           2719465.417,
           2714601.955,
@@ -12317,7 +12315,7 @@
           2162637.1293,
           2134460.0943,
           2134432.1583,
-          1238.7107
+          2134440.3783
         ],
         "counts": [
           6,
@@ -12923,11 +12921,17 @@
           6,
           6,
           6,
-          5
+          6
         ],
-        "latest": 1238.7107,
-        "change1": -2133193.4476,
+        "latest": 2134440.3783,
+        "change1": 8.22,
         "details": [
+          {
+            "code": "159919",
+            "name": "沪深300ETF嘉实",
+            "exchange": "SZSE",
+            "shares": 2133201.6676
+          },
           {
             "code": "510300",
             "name": "300ETF",
@@ -12979,10 +12983,8 @@
         "observed_count": 3,
         "missing_codes": [],
         "count": 3,
-        "actual_count": 2,
-        "latest_missing_codes": [
-          "159922"
-        ],
+        "actual_count": 3,
+        "latest_missing_codes": [],
         "series": [
           230167.0349,
           229326.9589,
@@ -13587,7 +13589,7 @@
           322812.6183,
           314312.7023,
           313024.4543,
-          157.1178
+          313824.7943
         ],
         "counts": [
           3,
@@ -14193,11 +14195,17 @@
           3,
           3,
           3,
-          2
+          3
         ],
-        "latest": 157.1178,
-        "change1": -312867.3365,
+        "latest": 313824.7943,
+        "change1": 800.34,
         "details": [
+          {
+            "code": "159922",
+            "name": "中证500ETF嘉实",
+            "exchange": "SZSE",
+            "shares": 313667.6765
+          },
           {
             "code": "510500",
             "name": "500ETF",
@@ -14235,12 +14243,8 @@
         "observed_count": 5,
         "missing_codes": [],
         "count": 5,
-        "actual_count": 2,
-        "latest_missing_codes": [
-          "159629",
-          "159633",
-          "159845"
-        ],
+        "actual_count": 5,
+        "latest_missing_codes": [],
         "series": [
           998751.4911,
           1004652.5511,
@@ -14845,7 +14849,7 @@
           478366.2911,
           442665.7511,
           439171.4711,
-          305.1984
+          428089.2911
         ],
         "counts": [
           5,
@@ -15451,11 +15455,29 @@
           5,
           5,
           5,
-          2
+          5
         ],
-        "latest": 305.1984,
-        "change1": -438866.2727,
+        "latest": 428089.2911,
+        "change1": -11082.18,
         "details": [
+          {
+            "code": "159845",
+            "name": "中证1000ETF华夏",
+            "exchange": "SZSE",
+            "shares": 233442.5606
+          },
+          {
+            "code": "159633",
+            "name": "中证1000ETF易方达",
+            "exchange": "SZSE",
+            "shares": 116416.2658
+          },
+          {
+            "code": "159629",
+            "name": "中证1000ETF富国",
+            "exchange": "SZSE",
+            "shares": 77925.2663
+          },
           {
             "code": "512100",
             "name": "1000ETF",
@@ -15499,13 +15521,8 @@
         "observed_count": 8,
         "missing_codes": [],
         "count": 8,
-        "actual_count": 4,
-        "latest_missing_codes": [
-          "159338",
-          "159351",
-          "159352",
-          "159361"
-        ],
+        "actual_count": 8,
+        "latest_missing_codes": [],
         "series": [
           null,
           null,
@@ -16110,7 +16127,7 @@
           9536003.2743,
           9434290.1343,
           9328086.7143,
-          742.7597
+          9197282.9643
         ],
         "counts": [
           0,
@@ -16716,11 +16733,35 @@
           8,
           8,
           8,
-          4
+          8
         ],
-        "latest": 742.7597,
-        "change1": -9327343.9546,
+        "latest": 9197282.9643,
+        "change1": -130803.75,
         "details": [
+          {
+            "code": "159352",
+            "name": "A500ETF南方",
+            "exchange": "SZSE",
+            "shares": 3041410.1746
+          },
+          {
+            "code": "159361",
+            "name": "A500ETF易方达",
+            "exchange": "SZSE",
+            "shares": 2652209.0279
+          },
+          {
+            "code": "159338",
+            "name": "中证A500ETF国泰",
+            "exchange": "SZSE",
+            "shares": 2647108.6664
+          },
+          {
+            "code": "159351",
+            "name": "A500ETF嘉实",
+            "exchange": "SZSE",
+            "shares": 855812.3357
+          },
           {
             "code": "563360",
             "name": "A500基金",
@@ -18736,7 +18777,7 @@
           10372390.5468,
           10346630.5468,
           10591680.5468,
-          null
+          10896370.5468
         ],
         "counts": [
           5,
@@ -19342,45 +19383,43 @@
           5,
           5,
           5,
-          0
+          5
         ],
-        "latest": 10591680.5468,
-        "change1": 245050.0,
+        "latest": 10896370.5468,
+        "change1": 304690.0,
         "details": [
           {
             "code": "159915",
             "name": "创业板ETF易方达",
             "exchange": "SZSE",
-            "shares": 5488645.4936
+            "shares": 5698745.4936
           },
           {
             "code": "159949",
             "name": "创业板50ETF华安",
             "exchange": "SZSE",
-            "shares": 2520778.5113
+            "shares": 2557678.5113
           },
           {
             "code": "159952",
             "name": "创业板ETF广发",
             "exchange": "SZSE",
-            "shares": 1492038.4929
+            "shares": 1528928.4929
           },
           {
             "code": "159977",
             "name": "创业板ETF天弘",
             "exchange": "SZSE",
-            "shares": 659987.282
+            "shares": 672987.282
           },
           {
             "code": "159682",
             "name": "创业板50ETF景顺",
             "exchange": "SZSE",
-            "shares": 430230.767
+            "shares": 438030.767
           }
         ],
-        "missing_days": [
-          "2026-11-26"
-        ]
+        "missing_days": []
       }
     ],
     "total_series": [
@@ -19987,7 +20026,7 @@
       22874225.0606,
       22674365.8846,
       22808463.3836,
-      4515.4324
+      22972079.6206
     ],
     "total_count": [
       26,
@@ -20593,10 +20632,10 @@
       35,
       35,
       35,
-      21
+      35
     ],
-    "total_latest": 4515.4324,
-    "total_change1": -22803947.9512,
+    "total_latest": 22972079.6206,
+    "total_change1": 163616.237,
     "expected_total": 35,
     "observed_total": 35,
     "missing_codes": [],
@@ -20609,7 +20648,7 @@
       "STAR": 5,
       "CHINEXT": 5
     },
-    "updated_at": "2026-11-26 15:20:15",
+    "updated_at": "2026-11-26 15:25:56",
     "source": "上海证券交易所、深圳证券交易所公开ETF份额披露",
     "errors": [],
     "partial_dates": [],

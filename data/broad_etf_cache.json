@@ -1,6 +1,6 @@
 {
   "classification_version": 5,
-  "updated_at": "2026-11-26 15:20:15",
+  "updated_at": "2026-11-26 15:25:56",
   "start_date": "2024-06-03",
   "end_date": "2026-11-26",
   "by_date": {
@@ -143177,6 +143177,104 @@
         "exchange": "SSE",
         "group": "STAR",
         "shares_10k": 482119.79
+      },
+      "159338": {
+        "code": "159338",
+        "name": "中证A500ETF国泰",
+        "exchange": "SZSE",
+        "group": "A500",
+        "shares_10k": 26471086664.0
+      },
+      "159351": {
+        "code": "159351",
+        "name": "A500ETF嘉实",
+        "exchange": "SZSE",
+        "group": "A500",
+        "shares_10k": 8558123357.0
+      },
+      "159352": {
+        "code": "159352",
+        "name": "A500ETF南方",
+        "exchange": "SZSE",
+        "group": "A500",
+        "shares_10k": 30414101746.0
+      },
+      "159361": {
+        "code": "159361",
+        "name": "A500ETF易方达",
+        "exchange": "SZSE",
+        "group": "A500",
+        "shares_10k": 26522090279.0
+      },
+      "159629": {
+        "code": "159629",
+        "name": "中证1000ETF富国",
+        "exchange": "SZSE",
+        "group": "1000",
+        "shares_10k": 779252663.0
+      },
+      "159633": {
+        "code": "159633",
+        "name": "中证1000ETF易方达",
+        "exchange": "SZSE",
+        "group": "1000",
+        "shares_10k": 1164162658.0
+      },
+      "159682": {
+        "code": "159682",
+        "name": "创业板50ETF景顺",
+        "exchange": "SZSE",
+        "group": "CHINEXT",
+        "shares_10k": 4380307670.0
+      },
+      "159845": {
+        "code": "159845",
+        "name": "中证1000ETF华夏",
+        "exchange": "SZSE",
+        "group": "1000",
+        "shares_10k": 2334425606.0
+      },
+      "159915": {
+        "code": "159915",
+        "name": "创业板ETF易方达",
+        "exchange": "SZSE",
+        "group": "CHINEXT",
+        "shares_10k": 56987454936.0
+      },
+      "159919": {
+        "code": "159919",
+        "name": "沪深300ETF嘉实",
+        "exchange": "SZSE",
+        "group": "300",
+        "shares_10k": 21332016676.0
+      },
+      "159922": {
+        "code": "159922",
+        "name": "中证500ETF嘉实",
+        "exchange": "SZSE",
+        "group": "500",
+        "shares_10k": 3136676765.0
+      },
+      "159949": {
+        "code": "159949",
+        "name": "创业板50ETF华安",
+        "exchange": "SZSE",
+        "group": "CHINEXT",
+        "shares_10k": 25576785113.0
+      },
+      "159952": {
+        "code": "159952",
+        "name": "创业板ETF广发",
+        "exchange": "SZSE",
+        "group": "CHINEXT",
+        "shares_10k": 15289284929.0
+      },
+      "159977": {
+        "code": "159977",
+        "name": "创业板ETF天弘",
+        "exchange": "SZSE",
+        "group": "CHINEXT",
+        "shares_10k": 6729872820.0
       }
     }
   },
@@ -143218,7 +143316,7 @@
     }
   ],
   "partial_dates": [],
-  "last_attempt": "2026-11-26T15:20:15",
+  "last_attempt": "2026-11-26T15:25:56",
   "errors": [],
   "source": "上海证券交易所、深圳证券交易所公开ETF份额披露"
 }
