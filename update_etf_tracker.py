@@ -4,7 +4,8 @@
 宽基 ETF 份额追踪 & 资金底背离监测系统 (QTYX V3.6.6 网页复刻增强版)
 数据源：
 1. 五大宽基指数日线：腾讯财经日K接口 (sh000688, sh000852, sh000905, sh000016, sh000300)
-2. 八大核心宽基ETF每日份额：上海证券交易所官方ETF规模接口 (COMMON_SSE_ZQPZ_ETFZL_XXPL_ETFGM_SEARCH_L)
+2. 八大核心宽基ETF每日份额：上海证券交易所官方ETF规模接口
+3. 沪深两市七大宽基系列35只ETF每日份额汇总：broad_market.py
 
 用法：
 - 更新数据并生成独立HTML看板：
@@ -181,10 +182,12 @@ def sync_data(force_full: bool = False) -> dict:
     all_trading_dates = sorted(list(all_dates_set))
     target_codes = {e["code"] for e in ETFS_META}
 
-    # Check which dates need fetching from SSE (always re-check the latest 3 trading days in case today's data just arrived)
     recent_recheck = set(all_trading_dates[-3:]) if all_trading_dates else set()
     missing_dates = [
-        d for d in all_trading_dates if (d not in etf_by_date) or (len(etf_by_date.get(d, {})) < len(target_codes)) or (d in recent_recheck)
+        d for d in all_trading_dates
+        if (d not in etf_by_date)
+        or (len(etf_by_date.get(d, {})) < len(target_codes))
+        or (d in recent_recheck)
     ]
 
     sse_url = "https://query.sse.com.cn/commonQuery.do"
@@ -219,7 +222,6 @@ def sync_data(force_full: bool = False) -> dict:
                 if res:
                     etf_by_date[d] = res
 
-    # Keep only dates that have both index and ETF share data
     valid_dates = sorted([d for d in etf_by_date.keys() if etf_by_date[d]])
 
     broad_cache = sync_broad_market(force_full=force_full)
@@ -296,7 +298,7 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>宽基ETF份额追踪 · 三大板块监测市场底 (QTYX-V3.6.6 Web版)</title>
+  <title>宽基ETF份额追踪 · 市场底背离监测系统 (QTYX-V3.6.6 Web版)</title>
   <script src="./echarts.min.js"></script>
   <script>
     if (typeof window.echarts === 'undefined') {
@@ -750,7 +752,7 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
       background: var(--bg-subtle);
     }
 
-    /* Style Selector Tabs for Section 2 */
+    /* Style Selector Tabs */
     .style-tabs {
       display: flex;
       flex-wrap: wrap;
@@ -760,7 +762,7 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
       display: inline-flex;
       align-items: center;
       gap: 7px;
-      padding: 7px 15px;
+      padding: 7px 14px;
       border-radius: 8px;
       font-size: 13px;
       font-weight: 700;
@@ -807,107 +809,6 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
       font-family: var(--font-mono);
     }
 
-    /* Section 3: Alert Signals Table & Summary Counters */
-    .signal-counters {
-      display: grid;
-      grid-template-columns: repeat(6, 1fr);
-      gap: 10px;
-      margin-bottom: 16px;
-    }
-    @media (max-width: 1100px) {
-      .signal-counters {
-        grid-template-columns: repeat(3, 1fr);
-      }
-    }
-    .signal-counter-card {
-      background: var(--bg-subtle);
-      border: 1px solid var(--border-color);
-      border-radius: var(--radius-md);
-      padding: 10px 14px;
-      cursor: pointer;
-      transition: all 0.15s;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-    .signal-counter-card:hover,
-    .signal-counter-card.active {
-      border-color: var(--accent);
-      background: var(--accent-soft);
-    }
-    .sc-title {
-      font-size: 12.5px;
-      font-weight: 700;
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-    }
-    .sc-sub {
-      font-size: 11px;
-      font-weight: 400;
-      color: var(--text-muted);
-    }
-    .sc-count {
-      font-family: var(--font-mono);
-      font-size: 20px;
-      font-weight: 800;
-    }
-
-    .filter-controls {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      gap: 10px;
-      margin-bottom: 14px;
-    }
-    .select-input, .text-input {
-      font-family: inherit;
-      font-size: 12.5px;
-      padding: 6px 11px;
-      border-radius: 7px;
-      border: 1px solid var(--border-color);
-      background: var(--bg-subtle);
-      color: var(--text-primary);
-      outline: none;
-    }
-    .select-input:focus, .text-input:focus {
-      border-color: var(--accent);
-    }
-
-    .table-wrap {
-      overflow-x: auto;
-      max-height: 620px;
-      overflow-y: auto;
-      border: 1px solid var(--border-color);
-      border-radius: var(--radius-md);
-    }
-    table.signal-table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 13px;
-      text-align: left;
-    }
-    table.signal-table th {
-      position: sticky;
-      top: 0;
-      background: var(--bg-subtle);
-      color: var(--text-secondary);
-      font-weight: 700;
-      padding: 10px 14px;
-      border-bottom: 2px solid var(--border-color);
-      border-right: 1px solid var(--border-color);
-      white-space: nowrap;
-      z-index: 2;
-    }
-    table.signal-table td {
-      padding: 8.5px 14px;
-      border-bottom: 1px solid var(--border-color);
-      border-right: 1px solid var(--border-color);
-      white-space: nowrap;
-    }
-    table.signal-table tr:hover td {
-      background: var(--bg-hover);
-    }
     .mono-cell {
       font-family: var(--font-mono);
     }
@@ -920,118 +821,151 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
       font-weight: 700;
     }
 
-    /* Signal Badges */
-    .sig-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      font-size: 12px;
-      font-weight: 700;
-      padding: 2.5px 9px;
-      border-radius: 6px;
-      margin-right: 4px;
-    }
-    .sig-buy-single {
-      background: var(--up-red-bg);
-      color: var(--up-red);
-    }
-    .sig-sell-single {
-      background: var(--warn-amber-bg);
-      color: var(--warn-amber);
-    }
-    .sig-buy-5d {
-      background: var(--purple-fire-bg);
-      color: var(--purple-fire);
-    }
-    .sig-bottom-acc {
-      background: var(--down-green-bg);
-      color: var(--down-green);
-    }
-    .sig-top-dist {
-      background: rgba(225, 29, 72, 0.12);
-      color: #e11d48;
-    }
-
-    /* Threshold Config Modal */
-    .modal-backdrop {
-      position: fixed;
-      inset: 0;
-      background: rgba(15, 23, 42, 0.55);
-      backdrop-filter: blur(3px);
-      display: none;
-      align-items: center;
-      justify-content: center;
-      z-index: 999;
-      padding: 20px;
-    }
-    .modal-backdrop.open {
-      display: flex;
-    }
-    .modal-card {
+    /* Full-market broad ETF aggregation panel */
+    .broad-market-panel {
       background: var(--bg-card);
       border: 1px solid var(--border-color);
       border-radius: var(--radius-lg);
-      width: 100%;
-      max-width: 820px;
-      padding: 22px 24px;
-      box-shadow: var(--shadow-md);
+      padding: 20px 22px;
+      margin: 0 0 22px;
+      box-shadow: var(--shadow-sm);
     }
-    .modal-head {
+    .broad-market-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+    .broad-market-head h2 {
+      font-size: 18px;
+      font-weight: 750;
+    }
+    .broad-market-note {
+      color: var(--text-muted);
+      font-size: 12.5px;
+      margin-top: 4px;
+    }
+    .broad-kpis {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(140px, 1fr));
+      gap: 10px;
+      margin: 14px 0 16px;
+    }
+    .broad-kpi {
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      padding: 12px 14px;
+      background: var(--bg-subtle);
+    }
+    .broad-kpi .k-label {
+      color: var(--text-muted);
+      font-size: 12px;
+    }
+    .broad-kpi .k-value {
+      font: 700 20px var(--font-mono);
+      margin-top: 5px;
+    }
+    .broad-tabs-bar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 12px;
+      padding: 10px 12px;
+      background: var(--bg-subtle);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+    }
+    .broad-chart-header {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding-bottom: 12px;
-      border-bottom: 1px solid var(--border-color);
-      margin-bottom: 14px;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 6px 0 4px;
     }
-    .modal-head h3 {
-      font-size: 16px;
+    .broad-chart-title {
+      font-size: 14.5px;
       font-weight: 700;
+      color: var(--text-primary);
     }
-    .thresh-table {
-      width: 100%;
+    .broad-chart-unit {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+    .broad-table-wrap {
+      overflow: auto;
+      margin-top: 14px;
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+    }
+    .broad-table {
       border-collapse: collapse;
-      font-size: 12.5px;
-      margin-bottom: 16px;
+      width: 100%;
+      min-width: 720px;
+      font-size: 13px;
     }
-    .thresh-table th, .thresh-table td {
-      padding: 8px 10px;
+    .broad-table th, .broad-table td {
+      padding: 10px 12px;
       border-bottom: 1px solid var(--border-color);
+      text-align: right;
+      white-space: nowrap;
+    }
+    .broad-table th:first-child, .broad-table td:first-child {
       text-align: left;
     }
-    .thresh-input {
-      width: 82px;
-      padding: 4px 8px;
-      border: 1px solid var(--border-strong);
-      border-radius: 6px;
+    .broad-table th {
+      color: var(--text-muted);
+      font-weight: 650;
       background: var(--bg-subtle);
-      color: var(--text-primary);
-      font-family: var(--font-mono);
-      font-size: 12.5px;
     }
-    /* Full-market broad ETF aggregation panel */
-    .broad-market-panel { background:var(--bg-card); border:1px solid var(--border-color); border-radius:var(--radius-lg); padding:18px; margin:18px 0 22px; box-shadow:var(--shadow-sm); }
-    .broad-market-head { display:flex; align-items:flex-start; justify-content:space-between; flex-wrap:wrap; gap:12px; margin-bottom:14px; }
-    .broad-market-head h2 { font-size:18px; font-weight:750; }
-    .broad-market-note { color:var(--text-muted); font-size:12px; margin-top:5px; }
-    .broad-kpis { display:grid; grid-template-columns:repeat(4,minmax(130px,1fr)); gap:10px; margin:14px 0; }
-    .broad-kpi { border:1px solid var(--border-color); border-radius:10px; padding:12px; background:var(--bg-subtle); }
-    .broad-kpi .k-label { color:var(--text-muted); font-size:12px; }
-    .broad-kpi .k-value { font:700 21px var(--font-mono); margin-top:5px; }
-    .broad-table-wrap { overflow:auto; }
-    .broad-table { border-collapse:collapse; width:100%; min-width:720px; font-size:13px; }
-    .broad-table th,.broad-table td { padding:10px 9px; border-bottom:1px solid var(--border-color); text-align:right; white-space:nowrap; }
-    .broad-table th:first-child,.broad-table td:first-child { text-align:left; }
-    .broad-table th { color:var(--text-muted); font-weight:650; background:var(--bg-subtle); }
-    .broad-expand { border:0; background:none; color:var(--accent); cursor:pointer; font:inherit; font-weight:700; }
-    .broad-detail { display:none; background:var(--bg-subtle); }
-    .broad-detail.open { display:table-row; }
-    .broad-detail td { text-align:left; white-space:normal; }
-    .broad-chip { display:inline-block; border:1px solid var(--border-color); border-radius:999px; padding:2px 8px; margin:2px 5px 2px 0; font-size:11px; color:var(--text-secondary); }
-    .broad-status { font-size:12px; color:var(--text-muted); margin-top:10px; }
-    .broad-daily-change-head { display:flex; align-items:baseline; justify-content:space-between; flex-wrap:wrap; gap:6px; margin:4px 2px 0; color:var(--text-primary); font-size:13px; }
-    .broad-daily-change-head span { color:var(--text-muted); font-size:11px; font-weight:400; }
-    @media(max-width:850px) { .broad-kpis {grid-template-columns:repeat(2,minmax(0,1fr));} }
+    .broad-table tr.active-series-row td {
+      background: var(--accent-soft);
+    }
+    .broad-expand {
+      border: 0;
+      background: none;
+      color: var(--accent);
+      cursor: pointer;
+      font: inherit;
+      font-weight: 700;
+    }
+    .broad-detail {
+      display: none;
+      background: var(--bg-subtle);
+    }
+    .broad-detail.open {
+      display: table-row;
+    }
+    .broad-detail td {
+      text-align: left;
+      white-space: normal;
+      padding: 10px 14px;
+    }
+    .broad-chip {
+      display: inline-block;
+      border: 1px solid var(--border-color);
+      background: var(--bg-card);
+      border-radius: 999px;
+      padding: 2px 9px;
+      margin: 2px 6px 2px 0;
+      font-size: 11.5px;
+      color: var(--text-secondary);
+    }
+    .broad-status {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 10px;
+      line-height: 1.6;
+    }
+    @media (max-width: 850px) {
+      .broad-kpis {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
 
     .toast {
       position: fixed;
@@ -1063,12 +997,10 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
 
       <div class="nav-actions">
         <nav class="nav-jump">
+          <a href="#sec-broad-market">七大宽基系列汇总</a>
           <a href="#sec-overview">1. 全市场总览图</a>
           <a href="#sec-single">2. 单ETF资金共振</a>
-          <a href="#sec-alerts">3. 预警信号清单</a>
         </nav>
-        <button class="btn" id="btnConfigThresh" title="配置每只ETF独立异动阈值">⚙️ 独立阈值配置</button>
-        <button class="btn" id="btnExportCsv" title="导出当前预警清单为CSV">📥 导出预警CSV</button>
         <button class="btn" id="btnThemeToggle" title="切换研报浅色/量化深色主题">🌓 切换主题</button>
         <button class="btn btn-primary" id="btnSyncLatest" title="数据由 GitHub Actions 每个交易日自动更新">⏱ 每日自动更新</button>
       </div>
@@ -1089,19 +1021,48 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
     <!-- Full-market aggregation: all recognized ETFs across both exchanges -->
     <section class="broad-market-panel" id="sec-broad-market">
       <div class="broad-market-head">
-        <div><h2>沪深两市宽基 ETF 全系列份额汇总</h2>
+        <div>
+          <h2>沪深两市宽基 ETF 全系列份额汇总</h2>
           <div class="broad-market-note">上证50 · 沪深300 · 中证500 · 中证1000 · 中证A500 · 科创宽基 · 创业板（创业板指+创业板50）</div>
         </div>
         <span class="rule-pill">按基金代码去重 · 单位：亿份</span>
       </div>
-      <div class="broad-kpis" id="broadMarketKpis"></div>
-      <div id="broadMarketChart" style="height:330px;width:100%;"></div>
-      <div class="broad-daily-change-head">
-        <strong>七大系列合计每日份额变化</strong>
-        <span>较前一有效披露日 · 单位：亿份</span>
+
+      <!-- Series Selector Tabs (Switch between All 7 Combined or Any Single Series) -->
+      <div class="broad-tabs-bar">
+        <div class="style-tabs" id="broadSeriesTabs"></div>
+        <div class="pill-group" id="broadRangeGroup">
+          <span class="pill-label">区间：</span>
+          <button class="pill-btn active" data-range="ALL">全部</button>
+          <button class="pill-btn" data-range="YTD">2026年以来</button>
+          <button class="pill-btn" data-range="6M">近6月</button>
+          <button class="pill-btn" data-range="3M">近3月</button>
+          <button class="pill-btn" data-range="1M">近1月</button>
+        </div>
       </div>
-      <div id="broadMarketDailyChangeChart" style="height:210px;width:100%;"></div>
-      <div class="broad-table-wrap"><table class="broad-table"><thead><tr><th>系列</th><th>纳入ETF数量</th><th>最新总份额（亿份）</th><th>较前一披露日变化（亿份）</th><th>明细</th></tr></thead><tbody id="broadMarketRows"></tbody></table></div>
+
+      <div class="broad-kpis" id="broadMarketKpis"></div>
+
+      <div class="broad-chart-header">
+        <div class="broad-chart-title" id="broadChartTitle">七大系列合计总份额走势 &amp; 每日份额变化</div>
+        <div class="broad-chart-unit">上图：累计总份额（亿份） · 下图：较前一有效披露日增减（亿份，红增绿减）</div>
+      </div>
+      <div id="broadMarketChart" style="height:440px;width:100%;"></div>
+
+      <div class="broad-table-wrap">
+        <table class="broad-table">
+          <thead>
+            <tr>
+              <th>系列（点击行可直接切换上方图表）</th>
+              <th>纳入ETF数量</th>
+              <th>最新总份额（亿份）</th>
+              <th>较前一披露日变化（亿份）</th>
+              <th>明细</th>
+            </tr>
+          </thead>
+          <tbody id="broadMarketRows"></tbody>
+        </table>
+      </div>
       <div class="broad-status" id="broadMarketStatus"></div>
     </section>
 
@@ -1179,107 +1140,7 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
       <!-- Stacked all-5-groups view container (hidden by default) -->
       <div id="stackedChartsContainer" class="stacked-charts-grid" style="display: none;"></div>
     </section>
-
-    <!-- SECTION 3: ETF Alert Signal Table -->
-    <section class="section-card" id="sec-alerts">
-      <div class="section-header">
-        <div class="section-title-group">
-          <div class="section-title">
-            <span class="section-num">板块三</span>
-            🚨 全 ETF 预警信号清单
-          </div>
-          <div class="section-desc">
-            自动扫描全历史周期，按日期倒序汇总触发异动的记录；每只 ETF 按规模体量独立配置阈值，点击任意行可定位至上方共振图对应日期
-          </div>
-        </div>
-        <div class="pill-group">
-          <label class="checkbox-label" title="开启后同一天若同时满足底部吸筹与单日大额申购，将同时展示多个标签">
-            <input type="checkbox" id="chkShowMultiTags" />
-            同日显示全部触发标签
-          </label>
-        </div>
-      </div>
-
-      <!-- 5 Signal Category Summary Cards -->
-      <div class="signal-counters" id="signalCountersGrid"></div>
-
-      <!-- Filter Bar -->
-      <div class="filter-controls">
-        <select class="select-input" id="selFilterEtf">
-          <option value="ALL">全部 8 只宽基 ETF</option>
-        </select>
-        <select class="select-input" id="selFilterGroup">
-          <option value="ALL">全部五大宽基板块</option>
-          <option value="科创50">科创50</option>
-          <option value="沪深300">沪深300</option>
-          <option value="上证50">上证50</option>
-          <option value="中证500">中证500</option>
-          <option value="中证1000">中证1000</option>
-        </select>
-        <select class="select-input" id="selFilterWindow">
-          <option value="60">最近 60 个交易日</option>
-          <option value="120">最近 120 个交易日</option>
-          <option value="250">最近 1 年 (250交易日)</option>
-          <option value="ALL" selected>全部历史记录 (2024-06至今)</option>
-        </select>
-        <input type="text" class="text-input" id="inpSearchSignal" placeholder="搜索日期 / 代码 / 名称 / 预警类型..." style="min-width: 230px;" />
-        <span id="signalCountSummary" style="margin-left: auto; font-size: 12.5px; color: var(--text-muted); font-weight: 600;"></span>
-      </div>
-
-      <div class="table-wrap">
-        <table class="signal-table">
-          <thead>
-            <tr>
-              <th>日期</th>
-              <th>ETF代码</th>
-              <th>ETF名称</th>
-              <th>所属宽基</th>
-              <th>预警类型</th>
-              <th>当日变化(亿)</th>
-              <th>5日累计(亿)</th>
-              <th>份额分位数</th>
-              <th>当日份额(亿)</th>
-              <th>对应指数点位</th>
-              <th>图表定位</th>
-            </tr>
-          </thead>
-          <tbody id="signalTableBody"></tbody>
-        </table>
-      </div>
-    </section>
   </main>
-
-  <!-- Per-ETF Threshold Configuration Modal -->
-  <div class="modal-backdrop" id="modalThresh">
-    <div class="modal-card">
-      <div class="modal-head">
-        <h3>⚙️ 每只宽基 ETF 独立异动阈值配置 (单位：亿份 / 分位数%)</h3>
-        <button class="btn" id="btnCloseModal">✕ 关闭</button>
-      </div>
-      <p style="font-size: 12.5px; color: var(--text-muted); margin-bottom: 12px;">
-        不同宽基 ETF 规模体量差异较大（如科创50华夏、沪深300华泰规模数百上千亿，中证1000广发、中证500华夏体量较小），独立配置阈值可避免一刀切。修改后将立即重新扫描全部历史数据。
-      </p>
-      <div style="overflow-x: auto;">
-        <table class="thresh-table">
-          <thead>
-            <tr>
-              <th>ETF代码</th>
-              <th>ETF名称</th>
-              <th>单日大额申赎阈值(亿)</th>
-              <th>5日持续建仓阈值(亿)</th>
-              <th>底部吸筹分位上限(%)</th>
-              <th>高位派发分位下限(%)</th>
-            </tr>
-          </thead>
-          <tbody id="threshModalBody"></tbody>
-        </table>
-      </div>
-      <div style="display: flex; justify-content: flex-end; gap: 10px;">
-        <button class="btn" id="btnResetThresh">恢复默认阈值</button>
-        <button class="btn btn-primary" id="btnSaveThresh">保存并重新扫描信号</button>
-      </div>
-    </div>
-  </div>
 
   <div class="toast" id="toastMsg"></div>
 
@@ -1292,116 +1153,383 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
       const dates = DATA.dates;
       const N = dates.length;
 
-      // Full-market series aggregation (SSE + SZSE official share disclosures)
+      function getThemeColors() {
+        const isDark = document.documentElement.getAttribute("data-theme") === "dark";
+        return {
+          isDark,
+          text: isDark ? "#e2e8f0" : "#1e293b",
+          subText: isDark ? "#94a3b8" : "#64748b",
+          gridLine: isDark ? "rgba(148, 163, 184, 0.13)" : "#f1f5f9",
+          axisLine: isDark ? "#334155" : "#cbd5e1",
+          tooltipBg: isDark ? "rgba(15, 23, 42, 0.94)" : "rgba(255, 255, 255, 0.96)",
+        };
+      }
+
+      // =========================================================================
+      // SECTION 0: FULL-MARKET BROAD ETF SERIES AGGREGATION (WITH SERIES TABS)
+      // =========================================================================
+      let activeBroadSeriesId = "TOTAL";
+      let broadZoomStart = 0;
+      let broadZoomEnd = 100;
+      let broadChartInstance = null;
+
+      function normalizeToYi(arr) {
+        if (!Array.isArray(arr) || !arr.length) return [];
+        const valid = arr.filter((v) => v != null && !isNaN(v));
+        const maxVal = valid.length ? Math.max(...valid) : 0;
+        const scale = maxVal > 50000 ? 10000 : 1;
+        return arr.map((v) => (v == null || isNaN(v) ? null : +(Number(v) / scale).toFixed(4)));
+      }
+
+      function computeDiffFromPrevValid(series) {
+        const diff = new Array(series.length).fill(null);
+        let prevValid = null;
+        for (let i = 0; i < series.length; i++) {
+          const cur = series[i];
+          if (cur == null) {
+            diff[i] = null;
+          } else if (prevValid == null) {
+            diff[i] = 0;
+            prevValid = cur;
+          } else {
+            diff[i] = +(cur - prevValid).toFixed(4);
+            prevValid = cur;
+          }
+        }
+        return diff;
+      }
+
       function renderBroadMarket() {
         const B = DATA.broad_market || {};
         const groups = B.groups || [];
-        const fmt = v => v == null ? "—" : Number(v).toLocaleString("zh-CN", {maximumFractionDigits:2});
-        const sign = v => v == null ? "—" : (v > 0 ? "+" : "") + fmt(v);
-        const total = B.total_latest;
-        const totalChange = B.total_change1;
+        const bDates = B.dates || [];
+        const fmt = (v) =>
+          v == null ? "—" : Number(v).toLocaleString("zh-CN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const sign = (v) => (v == null ? "—" : (v > 0 ? "+" : "") + fmt(v));
+
+        const tabsEl = document.getElementById("broadSeriesTabs");
+        const tabItems = [
+          { id: "TOTAL", name: "七大系列合计", color: "#1d4ed8", count: groups.reduce((a, g) => a + (g.count || 0), 0) },
+          ...groups.map((g) => ({ id: g.id, name: g.name, color: g.color || "#1d4ed8", count: g.count || 0 })),
+        ];
+
+        tabsEl.innerHTML = tabItems
+          .map(
+            (t) => `
+            <button class="style-tab ${activeBroadSeriesId === t.id ? "active" : ""}" data-series-id="${t.id}">
+              <span class="color-dot" style="background:${activeBroadSeriesId === t.id ? "#ffffff" : t.color}"></span>
+              <span>${t.name}</span>
+              <span style="font-size:11px;opacity:0.82;font-weight:500;">(${t.count}只)</span>
+            </button>
+          `
+          )
+          .join("");
+
+        tabsEl.querySelectorAll(".style-tab").forEach((btn) => {
+          btn.addEventListener("click", () => {
+            activeBroadSeriesId = btn.getAttribute("data-series-id");
+            renderBroadMarket();
+          });
+        });
+
+        const totalSeriesNorm = normalizeToYi(B.total_series || []);
+        const selectedGroup = groups.find((g) => g.id === activeBroadSeriesId);
+        const activeSeries = selectedGroup ? normalizeToYi(selectedGroup.series || []) : totalSeriesNorm;
+        const activeDiff = computeDiffFromPrevValid(activeSeries);
+        const activeName = selectedGroup ? selectedGroup.name : "七大系列合计";
+        const activeColor = selectedGroup ? selectedGroup.color || "#1d4ed8" : "#1d4ed8";
+
+        let latestVal = null;
+        let prevVal = null;
+        let latestDate = B.end_date || "—";
+        for (let i = activeSeries.length - 1; i >= 0; i--) {
+          if (activeSeries[i] != null) {
+            if (latestVal == null) {
+              latestVal = activeSeries[i];
+              latestDate = bDates[i] || latestDate;
+            } else if (prevVal == null) {
+              prevVal = activeSeries[i];
+              break;
+            }
+          }
+        }
+        const latestChange = latestVal != null && prevVal != null ? +(latestVal - prevVal).toFixed(4) : null;
+        const activeCount = selectedGroup
+          ? selectedGroup.count || 0
+          : groups.reduce((a, g) => a + (g.count || 0), 0);
+
         const kpis = document.getElementById("broadMarketKpis");
         kpis.innerHTML = `
-          <div class="broad-kpi"><div class="k-label">七大系列合计份额</div><div class="k-value">${fmt(total)} <small>亿份</small></div></div>
-          <div class="broad-kpi"><div class="k-label">较前一披露日变化</div><div class="k-value" style="color:${totalChange>0?'var(--up-red)':totalChange<0?'var(--down-green)':'inherit'}">${sign(totalChange)}</div></div>
-          <div class="broad-kpi"><div class="k-label">纳入统计的ETF数量</div><div class="k-value">${groups.reduce((a,g)=>a+(g.count||0),0)} <small>只</small></div></div>
-          <div class="broad-kpi"><div class="k-label">份额数据区间</div><div class="k-value" style="font-size:14px">${B.start_date||'—'} 至 ${B.end_date||'—'}</div></div>`;
+          <div class="broad-kpi">
+            <div class="k-label">${activeName} · 最新总份额</div>
+            <div class="k-value">${fmt(latestVal)} <small>亿份</small></div>
+          </div>
+          <div class="broad-kpi">
+            <div class="k-label">${activeName} · 较前一披露日变化</div>
+            <div class="k-value" style="color:${latestChange > 0 ? "var(--up-red)" : latestChange < 0 ? "var(--down-green)" : "inherit"}">${sign(latestChange)} <small>亿份</small></div>
+          </div>
+          <div class="broad-kpi">
+            <div class="k-label">${activeName} · 纳入ETF数量</div>
+            <div class="k-value">${activeCount} <small>只</small></div>
+          </div>
+          <div class="broad-kpi">
+            <div class="k-label">份额数据区间（最新披露：${latestDate}）</div>
+            <div class="k-value" style="font-size:14px">${B.start_date || "—"} 至 ${B.end_date || "—"}</div>
+          </div>
+        `;
+
+        document.getElementById("broadChartTitle").textContent = `${activeName}总份额走势 & 每日份额变化`;
+
+        const chartDom = document.getElementById("broadMarketChart");
+        if (window.echarts && chartDom && bDates.length) {
+          if (!broadChartInstance) {
+            broadChartInstance = echarts.init(chartDom);
+            broadChartInstance.on("datazoom", function () {
+              const opt = broadChartInstance.getOption();
+              if (opt.dataZoom && opt.dataZoom[0]) {
+                broadZoomStart = opt.dataZoom[0].start;
+                broadZoomEnd = opt.dataZoom[0].end;
+              }
+            });
+          }
+          const tc = getThemeColors();
+          const option = {
+            backgroundColor: "transparent",
+            tooltip: {
+              trigger: "axis",
+              axisPointer: { type: "cross", link: [{ xAxisIndex: "all" }] },
+              backgroundColor: tc.tooltipBg,
+              borderColor: tc.axisLine,
+              textStyle: { color: tc.text, fontSize: 12 },
+              formatter: function (params) {
+                if (!params || !params.length) return "";
+                const idx = params[0].dataIndex;
+                const dt = bDates[idx];
+                const sh = activeSeries[idx];
+                const chg = activeDiff[idx];
+                const chgColor = chg > 0 ? "#dc2626" : chg < 0 ? "#16a34a" : tc.text;
+                return `
+                  <div style="font-weight:700;margin-bottom:6px;border-bottom:1px solid ${tc.axisLine};padding-bottom:4px;">
+                    📅 ${dt} · ${activeName}
+                  </div>
+                  <div style="display:flex;justify-content:space-between;gap:18px;line-height:1.7;">
+                    <span>🏦 系列总份额：</span>
+                    <strong style="font-family:monospace;">${sh != null ? fmt(sh) : "—"} 亿份</strong>
+                  </div>
+                  <div style="display:flex;justify-content:space-between;gap:18px;line-height:1.7;">
+                    <span>📊 较前日增减：</span>
+                    <strong style="font-family:monospace;color:${chgColor};">${chg != null ? sign(chg) : "—"} 亿份</strong>
+                  </div>
+                `;
+              },
+            },
+            legend: {
+              top: 2,
+              left: "center",
+              textStyle: { color: tc.text, fontSize: 12 },
+            },
+            axisPointer: {
+              link: [{ xAxisIndex: "all" }],
+            },
+            grid: [
+              { left: 68, right: 28, top: 38, height: "44%" },
+              { left: 68, right: 28, top: "58%", height: "27%" },
+            ],
+            xAxis: [
+              {
+                type: "category",
+                data: bDates,
+                gridIndex: 0,
+                boundaryGap: false,
+                axisLine: { lineStyle: { color: tc.axisLine } },
+                axisLabel: { show: false },
+                axisTick: { show: false },
+                splitLine: { show: true, lineStyle: { color: tc.gridLine } },
+              },
+              {
+                type: "category",
+                data: bDates,
+                gridIndex: 1,
+                boundaryGap: true,
+                axisLine: { lineStyle: { color: tc.axisLine } },
+                axisLabel: { color: tc.subText, fontSize: 11, hideOverlap: true },
+                splitLine: { show: true, lineStyle: { color: tc.gridLine } },
+              },
+            ],
+            yAxis: [
+              {
+                type: "value",
+                name: "总份额(亿份)",
+                gridIndex: 0,
+                scale: true,
+                nameTextStyle: { color: tc.subText, fontSize: 11.5 },
+                axisLabel: { color: tc.subText, fontSize: 11 },
+                splitLine: { lineStyle: { color: tc.gridLine } },
+              },
+              {
+                type: "value",
+                name: "日变化(亿份)",
+                gridIndex: 1,
+                nameTextStyle: { color: tc.subText, fontSize: 11 },
+                axisLabel: { color: tc.subText, fontSize: 10.5 },
+                splitLine: { lineStyle: { color: tc.gridLine } },
+              },
+            ],
+            dataZoom: [
+              { type: "inside", xAxisIndex: [0, 1], start: broadZoomStart, end: broadZoomEnd },
+              {
+                type: "slider",
+                xAxisIndex: [0, 1],
+                bottom: 4,
+                height: 22,
+                start: broadZoomStart,
+                end: broadZoomEnd,
+                borderColor: tc.axisLine,
+                textStyle: { color: tc.subText },
+              },
+            ],
+            series: [
+              {
+                name: `${activeName}总份额`,
+                type: "line",
+                xAxisIndex: 0,
+                yAxisIndex: 0,
+                showSymbol: false,
+                smooth: false,
+                connectNulls: false,
+                data: activeSeries,
+                lineStyle: { width: 2.4, color: activeColor },
+                itemStyle: { color: activeColor },
+                areaStyle: {
+                  color: activeColor,
+                  opacity: 0.08,
+                },
+              },
+              {
+                name: `${activeName}每日份额变化`,
+                type: "bar",
+                xAxisIndex: 1,
+                yAxisIndex: 1,
+                data: activeDiff,
+                itemStyle: {
+                  color: function (p) {
+                    if (p.value == null) return "transparent";
+                    return p.value >= 0 ? "#ef4444" : "#22c55e";
+                  },
+                },
+              },
+            ],
+          };
+          broadChartInstance.setOption(option, true);
+        } else if (chartDom) {
+          chartDom.innerHTML =
+            '<div style="padding:40px;text-align:center;color:var(--text-muted)">等待首次全市场数据采集</div>';
+        }
+
         const tbody = document.getElementById("broadMarketRows");
-        tbody.innerHTML = groups.map((g,i)=>{
-          const detail = (g.details||[]).map(x=>`<span class="broad-chip">${x.code} ${x.name} · ${fmt(x.shares)}亿份 · ${x.exchange}</span>`).join("") || "暂无可用明细";
-          return `<tr><td><strong>${g.name}</strong></td><td>${g.count||0}</td><td>${fmt(g.latest)}</td><td style="color:${g.change1>0?'var(--up-red)':g.change1<0?'var(--down-green)':'inherit'}">${sign(g.change1)}</td><td><button class="broad-expand" data-expand="${i}">展开 ${g.count||0} 只ETF ▾</button></td></tr><tr class="broad-detail" id="broadDetail${i}"><td colspan="5">${detail}</td></tr>`;
-        }).join("") + `<tr><td><strong>七大系列合计</strong></td><td>${groups.reduce((a,g)=>a+(g.count||0),0)}</td><td><strong>${fmt(total)}</strong></td><td>${sign(totalChange)}</td><td>按代码去重汇总</td></tr>`;
-        tbody.querySelectorAll("[data-expand]").forEach(btn=>btn.addEventListener("click",()=>{
-          const row=document.getElementById("broadDetail"+btn.dataset.expand); row.classList.toggle("open");
-          btn.textContent=row.classList.contains("open")?"收起明细 ▴":`展开 ${groups[Number(btn.dataset.expand)].count||0} 只ETF ▾`;
-        }));
+        const totalLatestNorm = totalSeriesNorm.filter((v) => v != null).slice(-1)[0] ?? B.total_latest;
+        const totalPrevNorm = totalSeriesNorm.filter((v) => v != null).slice(-2, -1)[0];
+        const totalChangeNorm =
+          totalLatestNorm != null && totalPrevNorm != null ? +(totalLatestNorm - totalPrevNorm).toFixed(4) : B.total_change1;
+
+        tbody.innerHTML =
+          groups
+            .map((g, i) => {
+              const gNorm = normalizeToYi(g.series || []);
+              const gLatest = gNorm.filter((v) => v != null).slice(-1)[0] ?? g.latest;
+              const gPrev = gNorm.filter((v) => v != null).slice(-2, -1)[0];
+              const gChg = gLatest != null && gPrev != null ? +(gLatest - gPrev).toFixed(4) : g.change1;
+
+              const detail =
+                (g.details || [])
+                  .map((x) => {
+                    const sVal = Number(x.shares) > 50000 ? Number(x.shares) / 10000 : Number(x.shares);
+                    return `<span class="broad-chip">${x.code} ${x.name} · ${fmt(sVal)}亿份 · ${x.exchange}</span>`;
+                  })
+                  .join("") || "暂无可用明细";
+
+              const isSelected = activeBroadSeriesId === g.id;
+              return `
+                <tr class="${isSelected ? "active-series-row" : ""}" data-select-series="${g.id}" style="cursor:pointer;">
+                  <td>
+                    <span class="color-dot" style="background:${g.color || "#1d4ed8"};margin-right:6px;"></span>
+                    <strong>${g.name}</strong>
+                  </td>
+                  <td class="mono-cell">${g.count || 0}</td>
+                  <td class="mono-cell">${fmt(gLatest)}</td>
+                  <td class="mono-cell" style="color:${gChg > 0 ? "var(--up-red)" : gChg < 0 ? "var(--down-green)" : "inherit"}">${sign(gChg)}</td>
+                  <td><button class="broad-expand" data-expand="${i}">展开 ${g.count || 0} 只ETF ▾</button></td>
+                </tr>
+                <tr class="broad-detail" id="broadDetail${i}">
+                  <td colspan="5">${detail}</td>
+                </tr>
+              `;
+            })
+            .join("") +
+          `
+            <tr class="${activeBroadSeriesId === "TOTAL" ? "active-series-row" : ""}" data-select-series="TOTAL" style="cursor:pointer;">
+              <td><strong>七大系列合计</strong></td>
+              <td class="mono-cell">${groups.reduce((a, g) => a + (g.count || 0), 0)}</td>
+              <td class="mono-cell"><strong>${fmt(totalLatestNorm)}</strong></td>
+              <td class="mono-cell" style="color:${totalChangeNorm > 0 ? "var(--up-red)" : totalChangeNorm < 0 ? "var(--down-green)" : "inherit"}">${sign(totalChangeNorm)}</td>
+              <td>按代码去重汇总</td>
+            </tr>
+          `;
+
+        tbody.querySelectorAll("[data-expand]").forEach((btn) =>
+          btn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            const row = document.getElementById("broadDetail" + btn.dataset.expand);
+            row.classList.toggle("open");
+            btn.textContent = row.classList.contains("open")
+              ? "收起明细 ▴"
+              : `展开 ${groups[Number(btn.dataset.expand)].count || 0} 只ETF ▾`;
+          })
+        );
+
+        tbody.querySelectorAll("tr[data-select-series]").forEach((tr) =>
+          tr.addEventListener("click", () => {
+            activeBroadSeriesId = tr.getAttribute("data-select-series");
+            renderBroadMarket();
+          })
+        );
+
         const status = document.getElementById("broadMarketStatus");
         const partial = B.partial_dates || [];
-        status.textContent = `数据更新时间：${B.updated_at||'暂无'}；数据源：${B.source||'沪深交易所'}。${B.note||''}` +
-          (partial.length ? ` ⚠️ ${partial.length} 个自然日存在交易所接口采集失败/缺口，相关日期需结合采集日志核验：${partial.slice(-8).join('、')}${partial.length>8?'…':''}` : " 当前采集未记录接口失败日期。") +
-          ((B.errors||[]).length ? ` 采集异常 ${B.errors.length} 项；缺失数据不以前值填充。` : "");
-        const el=document.getElementById("broadMarketChart");
-        const dailyEl=document.getElementById("broadMarketDailyChangeChart");
-        if (window.echarts && el && B.dates && B.dates.length) {
-          const chart=echarts.init(el);
-          const series=(groups||[]).map(g=>({name:g.name,type:'line',showSymbol:false,smooth:false,data:g.series||[],connectNulls:false}));
-          series.push({name:'七大系列合计',type:'line',showSymbol:false,smooth:false,lineStyle:{width:3,type:'solid'},data:B.total_series||[],connectNulls:false});
-          chart.setOption({tooltip:{trigger:'axis'},legend:{type:'scroll'},grid:{left:55,right:25,top:45,bottom:55},xAxis:{type:'category',data:B.dates,axisLabel:{hideOverlap:true}},yAxis:{type:'value',name:'亿份'},dataZoom:[{type:'inside'},{type:'slider'}],series});
-
-          // 每日变化按前后两个有效披露日计算；缺失日保留 null，不当作 0。
-          const totalSeries = B.total_series || [];
-          let previousValid = null;
-          const dailyChanges = totalSeries.map(value => {
-            if (value == null || !Number.isFinite(Number(value))) return null;
-            const current = Number(value);
-            const change = previousValid == null ? null : Number((current - previousValid).toFixed(4));
-            previousValid = current;
-            return change;
-          });
-          if (dailyEl) {
-            const dailyChart = echarts.init(dailyEl);
-            dailyChart.setOption({
-              animation: false,
-              tooltip: {
-                trigger: 'axis',
-                axisPointer: { type: 'shadow' },
-                formatter: params => {
-                  const p = params && params[0];
-                  if (!p || p.value == null) return '';
-                  const v = Number(p.value);
-                  return `${p.axisValue}<br/>七大系列合计变化：<strong>${v > 0 ? '+' : ''}${v.toFixed(2)} 亿份</strong>`;
-                }
-              },
-              grid: { left: 58, right: 24, top: 16, bottom: 48 },
-              xAxis: { type: 'category', data: B.dates, axisLabel: { hideOverlap: true }, axisTick: { alignWithLabel: true } },
-              yAxis: { type: 'value', name: '亿份', scale: true, axisLabel: { formatter: value => Number(value).toFixed(0) } },
-              dataZoom: [{ type: 'inside' }, { type: 'slider', height: 18, bottom: 4 }],
-              series: [{
-                name: '每日份额变化', type: 'bar', data: dailyChanges, barMaxWidth: 12,
-                itemStyle: { color: params => params.value >= 0 ? '#ef4444' : '#22c55e', borderRadius: [2, 2, 0, 0] },
-                emphasis: { focus: 'series' }
-              }]
-            });
-            window.addEventListener('resize', () => dailyChart.resize());
-          }
-          window.addEventListener('resize',()=>chart.resize());
-        } else {
-          if (el) el.innerHTML='<div style="padding:40px;text-align:center;color:var(--text-muted)">等待首次全市场数据采集</div>';
-          if (dailyEl) dailyEl.innerHTML='<div style="padding:24px;text-align:center;color:var(--text-muted)">暂无每日变化数据</div>';
-        }
+        status.textContent =
+          `数据更新时间：${B.updated_at || "暂无"}；数据源：${B.source || "沪深交易所"}。${B.note || ""}` +
+          (partial.length
+            ? ` ⚠️ ${partial.length} 个自然日存在交易所接口采集失败/缺口：${partial.slice(-8).join("、")}${partial.length > 8 ? "…" : ""}`
+            : " 当前采集未记录接口失败日期。") +
+          ((B.errors || []).length ? ` 采集异常 ${B.errors.length} 项；缺失数据不以前值填充。` : "");
       }
+
+      document.querySelectorAll("#broadRangeGroup .pill-btn").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          document.querySelectorAll("#broadRangeGroup .pill-btn").forEach((b) => b.classList.remove("active"));
+          btn.classList.add("active");
+          const range = btn.getAttribute("data-range");
+          const bDates = (DATA.broad_market && DATA.broad_market.dates) || [];
+          const totalLen = bDates.length;
+          let startIdx = 0;
+          if (range === "1M") startIdx = Math.max(0, totalLen - 22);
+          else if (range === "3M") startIdx = Math.max(0, totalLen - 65);
+          else if (range === "6M") startIdx = Math.max(0, totalLen - 130);
+          else if (range === "YTD") {
+            const ytdIdx = bDates.findIndex((d) => d >= "2026-01-01");
+            startIdx = ytdIdx >= 0 ? ytdIdx : 0;
+          }
+          broadZoomStart = +((startIdx / Math.max(1, totalLen - 1)) * 100).toFixed(2);
+          broadZoomEnd = 100;
+          renderBroadMarket();
+        });
+      });
+
       renderBroadMarket();
 
-      // Clone configurable thresholds into state (persisted in localStorage)
-      const STORAGE_KEY = "qtyx_etf_thresholds_v366";
-      let thresholds = {};
-      function initThresholds(reset = false) {
-        if (!reset) {
-          try {
-            const saved = localStorage.getItem(STORAGE_KEY);
-            if (saved) thresholds = JSON.parse(saved);
-          } catch (e) {}
-        } else {
-          thresholds = {};
-          localStorage.removeItem(STORAGE_KEY);
-        }
-        DATA.etfs_meta.forEach((m) => {
-          if (!thresholds[m.code]) {
-            thresholds[m.code] = {
-              single_thresh: m.single_thresh,
-              five_day_thresh: m.five_day_thresh,
-              low_pct: m.low_pct,
-              high_pct: m.high_pct,
-            };
-          }
-        });
-      }
-      initThresholds(false);
-
-      // Compute derived metrics for each ETF across all N dates:
-      // - d1: 1-day share diff (亿)
-      // - d5: 5-day rolling share diff (亿)
-      // - pct: historical rank percentile (0~100%)
+      // =========================================================================
+      // DERIVED METRICS FOR 8 CORE ETFS
+      // =========================================================================
       const derived = {};
       function computeDerived() {
         DATA.etfs_meta.forEach((m) => {
@@ -1416,7 +1544,6 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
             d5[i] = i >= 5 && arr[i] != null && arr[i - 5] != null ? +(arr[i] - arr[i - 5]).toFixed(2) : 0;
           }
 
-          // Compute rank(pct=True) * 100 across the window (matching pandas rank(pct=True))
           const validVals = arr.filter((v) => v != null);
           const sortedVals = [...validVals].sort((a, b) => a - b);
           const totalValid = sortedVals.length || 1;
@@ -1426,7 +1553,6 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
               pct[i] = 0;
               continue;
             }
-            // Average rank for ties (1-based)
             let firstIdx = -1;
             let lastIdx = -1;
             for (let j = 0; j < totalValid; j++) {
@@ -1444,90 +1570,12 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
       }
       computeDerived();
 
-      // Classify 5 Alert Signal Types
-      // 1. 🚨单日大额申购: d1 >= single_thresh
-      // 2. ⚠️单日大额赎回: d1 <= -single_thresh
-      // 3. 🔥5日持续建仓: d5 >= five_day_thresh && d1 > 0
-      // 4. 🟢底部吸筹: pct <= low_pct && d1 >= Math.max(2.0, single_thresh * 0.4)
-      // 5. 🔴高位派发: pct >= high_pct && d1 <= -Math.max(2.0, single_thresh * 0.4)
-      const SIGNAL_META = {
-        SINGLE_BUY: { key: "SINGLE_BUY", label: "🚨单日大额申购", cls: "sig-buy-single", sub: "单日增量超阈值" },
-        SINGLE_SELL: { key: "SINGLE_SELL", label: "⚠️单日大额赎回", cls: "sig-sell-single", sub: "单日减量超阈值" },
-        FIVE_DAY_ACC: { key: "FIVE_DAY_ACC", label: "🔥5日持续建仓", cls: "sig-buy-5d", sub: "5日累计申购达标" },
-        BOTTOM_ACC: { key: "BOTTOM_ACC", label: "🟢底部吸筹", cls: "sig-bottom-acc", sub: "低分位区间净流入" },
-        TOP_DIST: { key: "TOP_DIST", label: "🔴高位派发", cls: "sig-top-dist", sub: "高分位区间净流出" },
-      };
-
-      let allSignals = [];
-      function scanAllSignals() {
-        const list = [];
-        for (let i = N - 1; i >= 1; i--) {
-          const dt = dates[i];
-          DATA.etfs_meta.forEach((m) => {
-            const code = m.code;
-            const t = thresholds[code];
-            const d1 = derived[code].d1[i];
-            const d5 = derived[code].d5[i];
-            const pct = derived[code].pct[i];
-            const share = derived[code].share[i];
-            const idxVal = (DATA.indices_series[m.index_code] || [])[i];
-
-            const tags = [];
-            const isSingleBuy = d1 >= t.single_thresh;
-            const isSingleSell = d1 <= -t.single_thresh;
-            const isFiveDay = d5 >= t.five_day_thresh && d1 >= Math.min(3.0, t.single_thresh * 0.5);
-            const isBottomAcc = pct <= t.low_pct && d1 >= Math.max(2.5, t.single_thresh * 0.45);
-            const isTopDist = pct >= t.high_pct && d1 <= -Math.max(2.5, t.single_thresh * 0.45);
-
-            // Determine primary signal matching QTYX table behavior, while also storing all matched tags
-            if (isSingleBuy) tags.push(SIGNAL_META.SINGLE_BUY);
-            if (isSingleSell) tags.push(SIGNAL_META.SINGLE_SELL);
-            if (isFiveDay) tags.push(SIGNAL_META.FIVE_DAY_ACC);
-            if (isBottomAcc) tags.push(SIGNAL_META.BOTTOM_ACC);
-            if (isTopDist) tags.push(SIGNAL_META.TOP_DIST);
-
-            if (tags.length > 0) {
-              // QTYX primary label priority: if 5-day accumulation triggered and d1 is moderate/initial breakout, or single-day big creation
-              let primary = tags[0];
-              if (isFiveDay && (!isSingleBuy || (pct < 35 && d5 >= t.five_day_thresh && d1 < t.single_thresh * 1.45))) {
-                primary = SIGNAL_META.FIVE_DAY_ACC;
-              }
-              list.push({
-                dateIdx: i,
-                date: dt,
-                code,
-                name: m.name,
-                group: m.group,
-                index_code: m.index_code,
-                index_name: m.index_name,
-                primary,
-                tags,
-                d1,
-                d5,
-                pct,
-                share,
-                idxVal,
-              });
-            }
-          });
-        }
-        allSignals = list;
-      }
-      scanAllSignals();
-
-      // Update Header Subtitle
       document.getElementById("metaSubtitle").textContent =
         `数据区间：${DATA.start_date} 至 ${DATA.end_date}（共 ${DATA.total_days} 个交易日） · 最近同步：${DATA.updated_at} · 数据源：沪深交易所ETF份额 & 腾讯指数日线`;
 
-      // Render 8 ETF Snapshot Cards
       function renderSnapshotCards() {
         const container = document.getElementById("etfSnapshotGrid");
         const lastIdx = N - 1;
-        // Find latest signal for each ETF
-        const latestSigMap = {};
-        allSignals.forEach((s) => {
-          if (!latestSigMap[s.code]) latestSigMap[s.code] = s;
-        });
 
         container.innerHTML = DATA.etfs_meta
           .map((m) => {
@@ -1540,10 +1588,6 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
             const d5Str = (d5 >= 0 ? "+" : "") + d5.toFixed(2);
             const d1Cls = d1 > 0 ? "val-pos" : d1 < 0 ? "val-neg" : "";
             const d5Cls = d5 > 0 ? "val-pos" : d5 < 0 ? "val-neg" : "";
-            const sig = latestSigMap[c];
-            const sigHtml = sig
-              ? `<span class="sig-badge ${sig.primary.cls}" style="font-size:10.5px;padding:1px 6px;">${sig.primary.label} (${sig.date.slice(5)})</span>`
-              : `<span style="color:var(--text-muted)">近期平稳</span>`;
 
             return `
               <div class="etf-card" data-group="${m.group}" data-code="${c}" title="点击查看 ${m.name} (${c}) 独立资金共振图">
@@ -1565,8 +1609,8 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
                   <div class="pct-bar-fill" style="width:${Math.min(100, Math.max(4, pct))}%;background:${m.color};"></div>
                 </div>
                 <div class="etf-card-foot">
-                  <span>分位 <strong>${pct.toFixed(1)}%</strong></span>
-                  ${sigHtml}
+                  <span>历史分位 <strong>${pct.toFixed(1)}%</strong></span>
+                  <span>${m.group}</span>
                 </div>
               </div>
             `;
@@ -1591,21 +1635,8 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
       let overviewZoomStart = 0;
       let overviewZoomEnd = 100;
 
-      function getThemeColors() {
-        const isDark = document.documentElement.getAttribute("data-theme") === "dark";
-        return {
-          isDark,
-          text: isDark ? "#e2e8f0" : "#1e293b",
-          subText: isDark ? "#94a3b8" : "#64748b",
-          gridLine: isDark ? "rgba(148, 163, 184, 0.13)" : "#f1f5f9",
-          axisLine: isDark ? "#334155" : "#cbd5e1",
-          tooltipBg: isDark ? "rgba(15, 23, 42, 0.94)" : "rgba(255, 255, 255, 0.96)",
-        };
-      }
-
       function buildNormalizedSeries(baseIdx = 0) {
         const series = [];
-        // 1. 5 Indices (dashed lines)
         DATA.indices_meta.forEach((m) => {
           const raw = DATA.indices_series[m.code] || [];
           const baseVal = raw[baseIdx] || raw.find((v) => v != null) || 1;
@@ -1620,17 +1651,12 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
             group: m.group,
             symbol: "none",
             smooth: false,
-            lineStyle: {
-              width: 1.8,
-              type: "dashed",
-              color: m.color,
-            },
+            lineStyle: { width: 1.8, type: "dashed", color: m.color },
             itemStyle: { color: m.color },
             emphasis: { focus: "series", lineStyle: { width: 3 } },
           });
         });
 
-        // 2. 8 ETFs (solid lines)
         DATA.etfs_meta.forEach((m) => {
           const raw = DATA.etf_series[m.code] || [];
           const baseVal = raw[baseIdx] || raw.find((v) => v != null) || 1;
@@ -1645,11 +1671,7 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
             group: m.group,
             symbol: "none",
             smooth: false,
-            lineStyle: {
-              width: 2.2,
-              type: "solid",
-              color: m.color,
-            },
+            lineStyle: { width: 2.2, type: "solid", color: m.color },
             itemStyle: { color: m.color },
             emphasis: { focus: "series", lineStyle: { width: 3.5 } },
           });
@@ -1726,12 +1748,7 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
             textStyle: { color: tc.text, fontSize: 12 },
             pageTextStyle: { color: tc.subText },
           },
-          grid: {
-            left: 58,
-            right: 32,
-            top: 112,
-            bottom: 75,
-          },
+          grid: { left: 58, right: 32, top: 112, bottom: 75 },
           xAxis: {
             type: "category",
             data: dates,
@@ -1749,11 +1766,7 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
             splitLine: { lineStyle: { color: tc.gridLine } },
           },
           dataZoom: [
-            {
-              type: "inside",
-              start: overviewZoomStart,
-              end: overviewZoomEnd,
-            },
+            { type: "inside", start: overviewZoomStart, end: overviewZoomEnd },
             {
               type: "slider",
               bottom: 10,
@@ -1794,7 +1807,6 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
         renderOverviewChart(startIdx);
       });
 
-      // Preset Filter Buttons for Section 1
       document.querySelectorAll("#overviewPresetGroup .pill-btn").forEach((btn) => {
         btn.addEventListener("click", () => {
           document.querySelectorAll("#overviewPresetGroup .pill-btn").forEach((b) => b.classList.remove("active"));
@@ -1808,7 +1820,6 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
         });
       });
 
-      // Period Range Buttons for Section 1
       document.querySelectorAll("#overviewPeriodGroup .pill-btn").forEach((btn) => {
         btn.addEventListener("click", () => {
           document.querySelectorAll("#overviewPeriodGroup .pill-btn").forEach((b) => b.classList.remove("active"));
@@ -1841,7 +1852,7 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
       ];
 
       let activeGroup = "科创50";
-      let activeEtfCode = "588000"; // Or "SUM" for group total when group has 2 ETFs
+      let activeEtfCode = "588000";
       let isAllExpanded = false;
       const chartSingle = echarts.init(document.getElementById("chartSingle"));
       let stackedChartInstances = [];
@@ -1905,7 +1916,7 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
 
         if (etfCodeOrSum === "SUM" && etfs.length > 1) {
           titleLabel = `${groupName}合计 (${etfs.map((e) => e.name).join("+")})`;
-          threshSingle = etfs.reduce((acc, e) => acc + thresholds[e.code].single_thresh, 0);
+          threshSingle = etfs.reduce((acc, e) => acc + e.single_thresh, 0);
           for (let i = 0; i < N; i++) {
             const sumVal = etfs.reduce((acc, e) => acc + (derived[e.code].share[i] || 0), 0);
             shareSeries.push(+sumVal.toFixed(2));
@@ -1919,7 +1930,7 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
         } else {
           const targetEtf = etfs.find((e) => e.code === etfCodeOrSum) || etfs[0];
           titleLabel = `${targetEtf.name} (${targetEtf.code})`;
-          threshSingle = thresholds[targetEtf.code].single_thresh;
+          threshSingle = targetEtf.single_thresh;
           shareSeries = derived[targetEtf.code].share;
           d1Series = derived[targetEtf.code].d1;
           d5Series = derived[targetEtf.code].d5;
@@ -1939,26 +1950,16 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
         };
       }
 
-      function buildResonanceOption(groupName, etfCodeOrSum, highlightDateIdx = null) {
+      function buildResonanceOption(groupName, etfCodeOrSum) {
         const tc = getThemeColors();
-        const { gMeta, idxSeries, shareSeries, d1Series, d5Series, pctSeries, titleLabel, threshSingle } =
+        const { gMeta, idxSeries, shareSeries, d1Series, d5Series, pctSeries, titleLabel } =
           getResonanceData(groupName, etfCodeOrSum);
-
-        const markPointData = [];
-        if (highlightDateIdx != null && highlightDateIdx >= 0 && highlightDateIdx < N) {
-          markPointData.push({
-            name: "定位日期",
-            coord: [dates[highlightDateIdx], shareSeries[highlightDateIdx]],
-            value: `${dates[highlightDateIdx]}\n${shareSeries[highlightDateIdx].toFixed(2)}亿`,
-            itemStyle: { color: "#dc2626" },
-          });
-        }
 
         return {
           backgroundColor: "transparent",
           title: {
             text: `${groupName} 资金共振总览`,
-            subtext: `${gMeta.index_name}走势 vs ${titleLabel} 份额 & 每日申赎净变化（单日异动阈值：±${threshSingle}亿份）`,
+            subtext: `${gMeta.index_name}走势 vs ${titleLabel} 份额 & 每日申赎净变化`,
             left: "center",
             top: 2,
             textStyle: { color: tc.text, fontSize: 15.5, fontWeight: 700 },
@@ -2054,11 +2055,7 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
               gridIndex: 0,
               scale: true,
               nameTextStyle: { color: tc.subText, fontSize: 11.5 },
-              axisLabel: {
-                color: tc.subText,
-                fontSize: 11,
-                formatter: "{value} 亿",
-              },
+              axisLabel: { color: tc.subText, fontSize: 11, formatter: "{value} 亿" },
               splitLine: { show: false },
             },
             {
@@ -2103,7 +2100,6 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
               symbol: "none",
               lineStyle: { width: 2.3, color: tc.isDark ? "#60a5fa" : "#1e293b" },
               itemStyle: { color: tc.isDark ? "#60a5fa" : "#1e293b" },
-              markPoint: markPointData.length ? { data: markPointData, symbolSize: 58 } : undefined,
             },
             {
               name: `${titleLabel}每日变化`,
@@ -2121,12 +2117,11 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
         };
       }
 
-      function renderSingleInsightAndChart(highlightDateIdx = null) {
-        const { gMeta, idxSeries, shareSeries, d1Series, d5Series, pctSeries, titleLabel, threshSingle } =
+      function renderSingleInsightAndChart() {
+        const { idxSeries, shareSeries, d1Series, d5Series, pctSeries, titleLabel, threshSingle } =
           getResonanceData(activeGroup, activeEtfCode);
 
         const last = N - 1;
-        // Compare 20-day index return vs 20-day share change to diagnose divergence
         const lookback = Math.min(20, last);
         const idxChg20 =
           idxSeries[last - lookback] > 0
@@ -2173,7 +2168,7 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
           </div>
         `;
 
-        const opt = buildResonanceOption(activeGroup, activeEtfCode, highlightDateIdx);
+        const opt = buildResonanceOption(activeGroup, activeEtfCode);
         chartSingle.setOption(opt, true);
       }
 
@@ -2241,201 +2236,7 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
       renderSingleInsightAndChart();
 
       // =========================================================================
-      // SECTION 3: ALERT SIGNALS TABLE & FILTERS
-      // =========================================================================
-      let activeSignalTypeFilter = "ALL";
-
-      // Populate ETF filter dropdown
-      const selFilterEtf = document.getElementById("selFilterEtf");
-      DATA.etfs_meta.forEach((m) => {
-        const opt = document.createElement("option");
-        opt.value = m.code;
-        opt.textContent = `${m.code} - ${m.name}`;
-        selFilterEtf.appendChild(opt);
-      });
-
-      function getFilteredSignals() {
-        const etfVal = document.getElementById("selFilterEtf").value;
-        const grpVal = document.getElementById("selFilterGroup").value;
-        const winVal = document.getElementById("selFilterWindow").value;
-        const q = document.getElementById("inpSearchSignal").value.trim().toLowerCase();
-        const showMulti = document.getElementById("chkShowMultiTags").checked;
-
-        const minDateIdx = winVal === "ALL" ? 0 : Math.max(0, N - parseInt(winVal, 10));
-
-        return allSignals.filter((s) => {
-          if (s.dateIdx < minDateIdx) return false;
-          if (etfVal !== "ALL" && s.code !== etfVal) return false;
-          if (grpVal !== "ALL" && s.group !== grpVal) return false;
-          if (activeSignalTypeFilter !== "ALL") {
-            if (showMulti) {
-              if (!s.tags.some((t) => t.key === activeSignalTypeFilter)) return false;
-            } else {
-              if (s.primary.key !== activeSignalTypeFilter) return false;
-            }
-          }
-          if (q) {
-            const hay = `${s.date} ${s.code} ${s.name} ${s.group} ${s.primary.label}`.toLowerCase();
-            if (!hay.includes(q)) return false;
-          }
-          return true;
-        });
-      }
-
-      function renderSignalCounters() {
-        const winVal = document.getElementById("selFilterWindow").value;
-        const minDateIdx = winVal === "ALL" ? 0 : Math.max(0, N - parseInt(winVal, 10));
-        const showMulti = document.getElementById("chkShowMultiTags").checked;
-
-        const windowSignals = allSignals.filter((s) => s.dateIdx >= minDateIdx);
-        const counts = {
-          ALL: windowSignals.length,
-          SINGLE_BUY: 0,
-          SINGLE_SELL: 0,
-          FIVE_DAY_ACC: 0,
-          BOTTOM_ACC: 0,
-          TOP_DIST: 0,
-        };
-        windowSignals.forEach((s) => {
-          if (showMulti) {
-            s.tags.forEach((t) => (counts[t.key] = (counts[t.key] || 0) + 1));
-          } else {
-            counts[s.primary.key] = (counts[s.primary.key] || 0) + 1;
-          }
-        });
-
-        const cards = [
-          { key: "ALL", label: "📊 全部异动信号", sub: "点击筛选各类型", count: counts.ALL, color: "var(--accent)" },
-          {
-            key: "BOTTOM_ACC",
-            label: SIGNAL_META.BOTTOM_ACC.label,
-            sub: SIGNAL_META.BOTTOM_ACC.sub,
-            count: counts.BOTTOM_ACC,
-            color: "var(--down-green)",
-          },
-          {
-            key: "TOP_DIST",
-            label: SIGNAL_META.TOP_DIST.label,
-            sub: SIGNAL_META.TOP_DIST.sub,
-            count: counts.TOP_DIST,
-            color: "#e11d48",
-          },
-          {
-            key: "SINGLE_BUY",
-            label: SIGNAL_META.SINGLE_BUY.label,
-            sub: SIGNAL_META.SINGLE_BUY.sub,
-            count: counts.SINGLE_BUY,
-            color: "var(--up-red)",
-          },
-          {
-            key: "SINGLE_SELL",
-            label: SIGNAL_META.SINGLE_SELL.label,
-            sub: SIGNAL_META.SINGLE_SELL.sub,
-            count: counts.SINGLE_SELL,
-            color: "var(--warn-amber)",
-          },
-          {
-            key: "FIVE_DAY_ACC",
-            label: SIGNAL_META.FIVE_DAY_ACC.label,
-            sub: SIGNAL_META.FIVE_DAY_ACC.sub,
-            count: counts.FIVE_DAY_ACC,
-            color: "var(--purple-fire)",
-          },
-        ];
-
-        const grid = document.getElementById("signalCountersGrid");
-        grid.innerHTML = cards
-          .map(
-            (c) => `
-          <div class="signal-counter-card ${activeSignalTypeFilter === c.key ? "active" : ""}" data-key="${c.key}">
-            <div class="sc-title">
-              <span>${c.label}</span>
-              <span class="sc-sub">${c.sub}</span>
-            </div>
-            <span class="sc-count" style="color:${c.color}">${c.count}</span>
-          </div>
-        `
-          )
-          .join("");
-
-        grid.querySelectorAll(".signal-counter-card").forEach((card) => {
-          card.addEventListener("click", () => {
-            activeSignalTypeFilter = card.getAttribute("data-key");
-            renderSignalCounters();
-            renderSignalTable();
-          });
-        });
-      }
-
-      function renderSignalTable() {
-        const rows = getFilteredSignals();
-        const showMulti = document.getElementById("chkShowMultiTags").checked;
-        document.getElementById("signalCountSummary").textContent = `当前筛选共 ${rows.length} 条异动记录`;
-
-        const tbody = document.getElementById("signalTableBody");
-        if (!rows.length) {
-          tbody.innerHTML = `<tr><td colspan="11" style="text-align:center;padding:28px;color:var(--text-muted);">未匹配到符合条件的预警信号</td></tr>`;
-          return;
-        }
-
-        // Render up to 350 rows for fast DOM performance
-        const displayRows = rows.slice(0, 350);
-        tbody.innerHTML = displayRows
-          .map((s) => {
-            const tagsHtml = showMulti
-              ? s.tags.map((t) => `<span class="sig-badge ${t.cls}">${t.label}</span>`).join("")
-              : `<span class="sig-badge ${s.primary.cls}">${s.primary.label}</span>`;
-
-            const d1Cls = s.d1 > 0 ? "val-pos" : s.d1 < 0 ? "val-neg" : "";
-            const d5Cls = s.d5 > 0 ? "val-pos" : s.d5 < 0 ? "val-neg" : "";
-
-            return `
-              <tr data-group="${s.group}" data-code="${s.code}" data-idx="${s.dateIdx}" style="cursor:pointer;">
-                <td class="mono-cell">${s.date}</td>
-                <td class="mono-cell">${s.code}</td>
-                <td style="font-weight:600;">${s.name}</td>
-                <td>${s.group}</td>
-                <td>${tagsHtml}</td>
-                <td class="mono-cell ${d1Cls}">${s.d1 >= 0 ? "" : ""}${s.d1.toFixed(2)}</td>
-                <td class="mono-cell ${d5Cls}">${s.d5 >= 0 ? "" : ""}${s.d5.toFixed(2)}</td>
-                <td class="mono-cell">${s.pct.toFixed(1)}%</td>
-                <td class="mono-cell">${s.share != null ? s.share.toFixed(2) : "-"}</td>
-                <td class="mono-cell">${s.idxVal != null ? s.idxVal.toFixed(2) : "-"}</td>
-                <td><button class="pill-btn" style="padding:2px 8px;font-size:11.5px;">📍 图表定位</button></td>
-              </tr>
-            `;
-          })
-          .join("");
-
-        tbody.querySelectorAll("tr[data-code]").forEach((tr) => {
-          tr.addEventListener("click", () => {
-            const grp = tr.getAttribute("data-group");
-            const code = tr.getAttribute("data-code");
-            const dateIdx = parseInt(tr.getAttribute("data-idx"), 10);
-            activeGroup = grp;
-            activeEtfCode = code;
-            if (isAllExpanded) toggleExpandMode(false);
-            renderStyleTabs();
-            renderSubEtfPills();
-            renderSingleInsightAndChart(dateIdx);
-            document.getElementById("sec-single").scrollIntoView({ behavior: "smooth", block: "start" });
-          });
-        });
-      }
-
-      renderSignalCounters();
-      renderSignalTable();
-
-      ["selFilterEtf", "selFilterGroup", "selFilterWindow", "chkShowMultiTags"].forEach((id) => {
-        document.getElementById(id).addEventListener("change", () => {
-          renderSignalCounters();
-          renderSignalTable();
-        });
-      });
-      document.getElementById("inpSearchSignal").addEventListener("input", renderSignalTable);
-
-      // =========================================================================
-      // THRESHOLD MODAL & CSV EXPORT & THEME & LIVE SYNC
+      // THEME & SYNC NOTICE
       // =========================================================================
       function showToast(msg) {
         const el = document.getElementById("toastMsg");
@@ -2447,102 +2248,11 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
         }, 3200);
       }
 
-      const modalThresh = document.getElementById("modalThresh");
-      function openThreshModal() {
-        const tbody = document.getElementById("threshModalBody");
-        tbody.innerHTML = DATA.etfs_meta
-          .map((m) => {
-            const t = thresholds[m.code];
-            return `
-            <tr data-code="${m.code}">
-              <td class="mono-cell">${m.code}</td>
-              <td style="font-weight:600;">${m.name}</td>
-              <td><input type="number" step="0.5" class="thresh-input inp-s1" value="${t.single_thresh}" /></td>
-              <td><input type="number" step="1" class="thresh-input inp-s5" value="${t.five_day_thresh}" /></td>
-              <td><input type="number" step="1" class="thresh-input inp-low" value="${t.low_pct}" /></td>
-              <td><input type="number" step="1" class="thresh-input inp-high" value="${t.high_pct}" /></td>
-            </tr>
-          `;
-          })
-          .join("");
-        modalThresh.classList.add("open");
-      }
-
-      document.getElementById("btnConfigThresh").addEventListener("click", openThreshModal);
-      document.getElementById("btnCloseModal").addEventListener("click", () => modalThresh.classList.remove("open"));
-      modalThresh.addEventListener("click", (e) => {
-        if (e.target === modalThresh) modalThresh.classList.remove("open");
-      });
-
-      document.getElementById("btnResetThresh").addEventListener("click", () => {
-        initThresholds(true);
-        openThreshModal();
-        scanAllSignals();
-        renderSnapshotCards();
-        renderSingleInsightAndChart();
-        renderSignalCounters();
-        renderSignalTable();
-        showToast("已恢复默认阈值并重新扫描全部信号");
-      });
-
-      document.getElementById("btnSaveThresh").addEventListener("click", () => {
-        document.querySelectorAll("#threshModalBody tr[data-code]").forEach((tr) => {
-          const c = tr.getAttribute("data-code");
-          thresholds[c] = {
-            single_thresh: parseFloat(tr.querySelector(".inp-s1").value) || 5.0,
-            five_day_thresh: parseFloat(tr.querySelector(".inp-s5").value) || 15.0,
-            low_pct: parseFloat(tr.querySelector(".inp-low").value) || 20.0,
-            high_pct: parseFloat(tr.querySelector(".inp-high").value) || 80.0,
-          };
-        });
-        try {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(thresholds));
-        } catch (e) {}
-        modalThresh.classList.remove("open");
-        scanAllSignals();
-        renderSnapshotCards();
-        renderSingleInsightAndChart();
-        renderSignalCounters();
-        renderSignalTable();
-        showToast("新阈值已保存，预警信号清单已更新！");
-      });
-
-      // CSV Export
-      document.getElementById("btnExportCsv").addEventListener("click", () => {
-        const rows = getFilteredSignals();
-        const header = ["日期", "ETF代码", "ETF名称", "所属宽基", "预警类型", "当日变化(亿)", "5日累计(亿)", "份额分位数(%)", "当日份额(亿)", "对应指数点位"];
-        const csvLines = [header.join(",")];
-        rows.forEach((s) => {
-          csvLines.push(
-            [
-              s.date,
-              s.code,
-              s.name,
-              s.group,
-              s.primary.label,
-              s.d1.toFixed(2),
-              s.d5.toFixed(2),
-              s.pct.toFixed(1) + "%",
-              s.share != null ? s.share.toFixed(2) : "",
-              s.idxVal != null ? s.idxVal.toFixed(2) : "",
-            ].join(",")
-          );
-        });
-        const blob = new Blob(["\uFEFF" + csvLines.join("\n")], { type: "text/csv;charset=utf-8;" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `宽基ETF份额预警信号_${DATA.end_date}.csv`;
-        a.click();
-        URL.revokeObjectURL(url);
-        showToast(`已导出 ${rows.length} 条预警记录到 CSV`);
-      });
-
-      // Theme Toggle
       document.getElementById("btnThemeToggle").addEventListener("click", () => {
         const cur = document.documentElement.getAttribute("data-theme");
         const next = cur === "dark" ? "light" : "dark";
         document.documentElement.setAttribute("data-theme", next);
+        renderBroadMarket();
         const startIdx = document.getElementById("chkDynamicRebase").checked
           ? Math.max(0, Math.min(N - 1, Math.floor((overviewZoomStart / 100) * (N - 1))))
           : 0;
@@ -2551,12 +2261,12 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
         else renderSingleInsightAndChart();
       });
 
-      // Static-site deployment: data is refreshed by the scheduled GitHub Actions workflow.
       document.getElementById("btnSyncLatest").addEventListener("click", () => {
         showToast("本网页由 GitHub Actions 每个交易日自动更新。如需立即更新，请到 GitHub 仓库的 Actions 页面手动运行工作流。");
       });
 
       window.addEventListener("resize", () => {
+        if (broadChartInstance) broadChartInstance.resize();
         chartOverview.resize();
         chartSingle.resize();
         stackedChartInstances.forEach((inst) => inst.resize());
