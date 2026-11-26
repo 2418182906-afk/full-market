@@ -1,139 +1,128 @@
-            ),
+# -*- coding: utf-8 -*-
+"""沪深交易所指定宽基ETF份额采集与系列聚合。
 
-            'series': series,
-            'counts': counts,
-            'latest': latest,
+仅追踪固定代码白名单中的35只ETF。
+份额单位统一为亿份；原始缓存保留万份。
+分类完全依据ETF代码，不依赖基金简称或关键词。
+"""
 
-            'change1': (
-                round(latest - prev, 4)
-                if latest is not None and prev is not None
-                else None
-            ),
+import json
+import os
+import time
+import io
+import re
+import zipfile
+import xml.etree.ElementTree as ET
+from datetime import date, datetime, timedelta
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
-            'details': details,
-            'missing_days': missing
-        })
+import requests
 
-    # --------------------------------------------------------
-    # 七大系列合计
-    # --------------------------------------------------------
 
-    total_series = []
-    total_count = []
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DATA_DIR = os.path.join(BASE_DIR, 'data')
+CACHE_PATH = os.path.join(DATA_DIR, 'broad_etf_cache.json')
 
-    for day in dates:
+START_DATE = '2024-06-03'
 
-        rows = [
-            r
-            for code, r in cache['by_date'].get(day, {}).items()
-            if (
-                str(code).zfill(6) in CODE_TO_GROUP
-                and r.get('group') in GROUP_IDS
-            )
-        ]
+# 白名单更新后递增版本号，触发历史数据重新采集
+CLASSIFICATION_VERSION = 5
 
-        if rows:
+SSE_URL = 'https://query.sse.com.cn/commonQuery.do'
+SZSE_URL = 'https://www.szse.cn/api/report/ShowReport'
 
-            total_series.append(
-                round(
-                    sum(
-                        r['shares_10k']
-                        for r in rows
-                    ) / 10000,
-                    4
-                )
-            )
+HEADERS = {
+    'User-Agent': (
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
+        'AppleWebKit/537.36 Chrome/120 Safari/537.36'
+    ),
+    'Referer': 'https://www.sse.com.cn/'
+}
 
-        else:
+GROUPS = [
+    {'id': '50', 'name': '上证50', 'color': '#f08c00'},
+    {'id': '300', 'name': '沪深300', 'color': '#1098ad'},
+    {'id': '500', 'name': '中证500', 'color': '#7950f2'},
+    {'id': '1000', 'name': '中证1000', 'color': '#40a02b'},
+    {'id': 'A500', 'name': '中证A500', 'color': '#d6336c'},
+    {'id': 'STAR', 'name': '科创宽基', 'color': '#1c7ed6'},
+    {'id': 'CHINEXT', 'name': '创业板', 'color': '#e03131'},
+]
 
-            total_series.append(None)
+GROUP_IDS = {g['id'] for g in GROUPS}
 
-        total_count.append(len(rows))
 
-    latest_idx = next(
-        (
-            i
-            for i in range(len(dates) - 1, -1, -1)
-            if total_series[i] is not None
-        ),
-        None
-    )
+# ============================================================
+# 一、固定代码白名单：共35只
+# ============================================================
 
-    prev_idx = (
-        next(
-            (
-                i
-                for i in range(latest_idx - 1, -1, -1)
-                if total_series[i] is not None
-            ),
-            None
-        )
-        if latest_idx is not None
-        else None
-    )
+CODE_LISTS = {
 
-    latest = (
-        total_series[latest_idx]
-        if latest_idx is not None
-        else None
-    )
+    # 上证50：3只
+    '50': [
+        '510100',
+        '510050',
+        '530000',
+    ],
 
-    prev = (
-        total_series[prev_idx]
-        if prev_idx is not None
-        else None
-    )
+    # 沪深300：6只
+    '300': [
+        '510300',
+        '510330',
+        '159919',
+        '510310',
+        '515330',
+        '510360',
+    ],
 
-    # --------------------------------------------------------
-    # 总体白名单统计
-    # --------------------------------------------------------
+    # 中证500：3只
+    '500': [
+        '510500',
+        '159922',
+        '512500',
+    ],
 
-    observed_total = len(all_observed_codes)
+    # 中证1000：5只
+    '1000': [
+        '512100',
+        '159845',
+        '560010',
+        '159629',
+        '159633',
+    ],
 
-    missing_total_codes = sorted(
-        ALL_CODES - all_observed_codes
-    )
+    # 中证A500：8只
+    'A500': [
+        '563360',
+        '159352',
+        '159361',
+        '159338',
+        '512050',
+        '563800',
+        '159351',
+        '563220',
+    ],
 
-    return {
-        'dates': dates,
-        'groups': groups,
+    # 科创宽基：5只
+    'STAR': [
+        '588080',
+        '588050',
+        '588000',
+        '588060',
+        '588220',
+    ],
 
-        'total_series': total_series,
-        'total_count': total_count,
+    # 创业板：5只
+    'CHINEXT': [
+        '159915',
+        '159949',
+        '159952',
+        '159977',
+        '159682',
+    ],
+}
 
-        'total_latest': latest,
 
-        'total_change1': (
-            round(latest - prev, 4)
-            if latest is not None and prev is not None
-            else None
-        ),
-
-        # 白名单总体统计
-        'expected_total': EXPECTED_TOTAL,
-        'observed_total': observed_total,
-        'missing_codes': missing_total_codes,
-        'expected_counts': expected_counts,
-
-        'updated_at': cache.get('updated_at'),
-        'source': cache.get('source'),
-        'errors': cache.get('errors', []),
-        'partial_dates': cache.get('partial_dates', []),
-        'start_date': cache.get('start_date'),
-        'end_date': cache.get('end_date'),
-
-        'note': (
-            '单位：亿份。'
-            '本页面仅统计固定代码白名单中的35只指定宽基ETF。'
-            '七大系列分别为上证50、沪深300、中证500、'
-            '中证1000、中证A500、科创宽基及创业板。'
-            '不自动纳入同系列其他ETF。'
-            '创业板200、创业板综指、科创创业50、'
-            '双创50及行业主题ETF不纳入。'
-            '分类完全依据ETF代码，不依赖基金简称。'
-            '实际披露数量以交易所数据为准。'
-            '缺失日不以前值填充。'
-            '全市场合计指本页35只指定ETF合计，'
-            '不代表全部类型ETF。'
-        )
-    }
+# 各系列预期数量
+EXPECTED_COUNTS = {
+    '50': 3,
