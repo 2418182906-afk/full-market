@@ -1,3 +1,4 @@
+```yaml
 name: Update ETF data and deploy website
 
 on:
@@ -16,13 +17,11 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  update-and-deploy:
+
+  # 第一阶段：更新数据、生成网页、上传部署文件
+  build:
     runs-on: ubuntu-latest
     timeout-minutes: 60
-
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
 
     steps:
       - name: Check out repository
@@ -44,7 +43,9 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
           git add data/etf_share_cache.json data/broad_etf_cache.json etf_share_tracker.html
+
           if ! git diff --cached --quiet; then
             git commit -m "chore: update ETF data"
             git push
@@ -55,10 +56,13 @@ jobs:
       - name: Prepare static website
         run: |
           mkdir -p site
+
           test -s etf_share_tracker.html
           test -s echarts.min.js
+
           cp etf_share_tracker.html site/index.html
           cp echarts.min.js site/echarts.min.js
+
           echo "Website files prepared:"
           ls -lah site
 
@@ -78,6 +82,23 @@ jobs:
           echo "Uploaded artifact ID: ${{ steps.upload.outputs.artifact_id }}"
           test -n "${{ steps.upload.outputs.artifact_id }}"
 
+  # 第二阶段：等待第一阶段完成，再部署网站
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+
+    permissions:
+      pages: write
+      id-token: write
+      contents: read
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
       - name: Deploy website
         id: deployment
         uses: actions/deploy-pages@v4
+        with:
+          artifact_name: github-pages
