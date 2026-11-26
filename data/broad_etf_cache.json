@@ -1,6 +1,6 @@
 {
   "classification_version": 5,
-  "updated_at": "2026-11-26 13:33:22",
+  "updated_at": "2026-11-26 14:01:15",
   "start_date": "2024-06-03",
   "end_date": "2026-11-25",
   "by_date": {
@@ -143069,7 +143069,7 @@
     }
   ],
   "partial_dates": [],
-  "last_attempt": "2026-11-26T13:33:22",
+  "last_attempt": "2026-11-26T14:01:15",
   "errors": [],
   "source": "上海证券交易所、深圳证券交易所公开ETF份额披露"
 }
