@@ -1,4 +1,4 @@
-```yaml
+
 name: Update ETF data and deploy website
 
 on:
