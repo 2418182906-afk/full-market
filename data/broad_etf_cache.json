@@ -1,8 +1,8 @@
 {
   "classification_version": 5,
-  "updated_at": "2026-11-26 14:01:15",
+  "updated_at": "2026-11-26 14:19:49",
   "start_date": "2024-06-03",
-  "end_date": "2026-11-25",
+  "end_date": "2026-11-26",
   "by_date": {
     "2024-06-03": {
       "510050": {
@@ -143029,6 +143029,155 @@
         "group": "CHINEXT",
         "shares_10k": 6599872820.0
       }
+    },
+    "2026-11-26": {
+      "510050": {
+        "code": "510050",
+        "name": "50ETF",
+        "exchange": "SSE",
+        "group": "50",
+        "shares_10k": 2544816.68
+      },
+      "510100": {
+        "code": "510100",
+        "name": "SZ50ETF",
+        "exchange": "SSE",
+        "group": "50",
+        "shares_10k": 94550.68
+      },
+      "510300": {
+        "code": "510300",
+        "name": "300ETF",
+        "exchange": "SSE",
+        "group": "300",
+        "shares_10k": 5610288.77
+      },
+      "510310": {
+        "code": "510310",
+        "name": "HS300ETF",
+        "exchange": "SSE",
+        "group": "300",
+        "shares_10k": 3132424.4
+      },
+      "510330": {
+        "code": "510330",
+        "name": "华夏300",
+        "exchange": "SSE",
+        "group": "300",
+        "shares_10k": 2347584.98
+      },
+      "510360": {
+        "code": "510360",
+        "name": "广发300",
+        "exchange": "SSE",
+        "group": "300",
+        "shares_10k": 305938.12
+      },
+      "510500": {
+        "code": "510500",
+        "name": "500ETF",
+        "exchange": "SSE",
+        "group": "500",
+        "shares_10k": 1368616.86
+      },
+      "512050": {
+        "code": "512050",
+        "name": "A500E",
+        "exchange": "SSE",
+        "group": "A500",
+        "shares_10k": 1728499.22
+      },
+      "512100": {
+        "code": "512100",
+        "name": "1000ETF",
+        "exchange": "SSE",
+        "group": "1000",
+        "shares_10k": 2811721.76
+      },
+      "512500": {
+        "code": "512500",
+        "name": "中证500",
+        "exchange": "SSE",
+        "group": "500",
+        "shares_10k": 202560.88
+      },
+      "515330": {
+        "code": "515330",
+        "name": "天弘300",
+        "exchange": "SSE",
+        "group": "300",
+        "shares_10k": 990870.95
+      },
+      "530000": {
+        "code": "530000",
+        "name": "50ETF基",
+        "exchange": "SSE",
+        "group": "50",
+        "shares_10k": 93202.94
+      },
+      "560010": {
+        "code": "560010",
+        "name": "1000基金",
+        "exchange": "SSE",
+        "group": "1000",
+        "shares_10k": 240262.17
+      },
+      "563220": {
+        "code": "563220",
+        "name": "A500富国",
+        "exchange": "SSE",
+        "group": "A500",
+        "shares_10k": 784401.37
+      },
+      "563360": {
+        "code": "563360",
+        "name": "A500基金",
+        "exchange": "SSE",
+        "group": "A500",
+        "shares_10k": 3792498.74
+      },
+      "563800": {
+        "code": "563800",
+        "name": "A500龙头",
+        "exchange": "SSE",
+        "group": "A500",
+        "shares_10k": 1122197.81
+      },
+      "588000": {
+        "code": "588000",
+        "name": "科创50",
+        "exchange": "SSE",
+        "group": "STAR",
+        "shares_10k": 10551566.82
+      },
+      "588050": {
+        "code": "588050",
+        "name": "科创ETF",
+        "exchange": "SSE",
+        "group": "STAR",
+        "shares_10k": 690424.13
+      },
+      "588060": {
+        "code": "588060",
+        "name": "上证科创",
+        "exchange": "SSE",
+        "group": "STAR",
+        "shares_10k": 1202514.0
+      },
+      "588080": {
+        "code": "588080",
+        "name": "科创板50",
+        "exchange": "SSE",
+        "group": "STAR",
+        "shares_10k": 5057262.81
+      },
+      "588220": {
+        "code": "588220",
+        "name": "科创100F",
+        "exchange": "SSE",
+        "group": "STAR",
+        "shares_10k": 482119.79
+      }
     }
   },
   "groups": [
@@ -143069,7 +143218,7 @@
     }
   ],
   "partial_dates": [],
-  "last_attempt": "2026-11-26T14:01:15",
+  "last_attempt": "2026-11-26T14:19:49",
   "errors": [],
   "source": "上海证券交易所、深圳证券交易所公开ETF份额披露"
 }
