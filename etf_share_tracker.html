@@ -736,6 +736,8 @@
     .broad-detail td { text-align:left; white-space:normal; }
     .broad-chip { display:inline-block; border:1px solid var(--border-color); border-radius:999px; padding:2px 8px; margin:2px 5px 2px 0; font-size:11px; color:var(--text-secondary); }
     .broad-status { font-size:12px; color:var(--text-muted); margin-top:10px; }
+    .broad-daily-change-head { display:flex; align-items:baseline; justify-content:space-between; flex-wrap:wrap; gap:6px; margin:4px 2px 0; color:var(--text-primary); font-size:13px; }
+    .broad-daily-change-head span { color:var(--text-muted); font-size:11px; font-weight:400; }
     @media(max-width:850px) { .broad-kpis {grid-template-columns:repeat(2,minmax(0,1fr));} }
 
     .toast {
@@ -801,6 +803,11 @@
       </div>
       <div class="broad-kpis" id="broadMarketKpis"></div>
       <div id="broadMarketChart" style="height:330px;width:100%;"></div>
+      <div class="broad-daily-change-head">
+        <strong>七大系列合计每日份额变化</strong>
+        <span>较前一有效披露日 · 单位：亿份</span>
+      </div>
+      <div id="broadMarketDailyChangeChart" style="height:210px;width:100%;"></div>
       <div class="broad-table-wrap"><table class="broad-table"><thead><tr><th>系列</th><th>纳入ETF数量</th><th>最新总份额（亿份）</th><th>较前一披露日变化（亿份）</th><th>明细</th></tr></thead><tbody id="broadMarketRows"></tbody></table></div>
       <div class="broad-status" id="broadMarketStatus"></div>
     </section>
@@ -1021,13 +1028,54 @@
           (partial.length ? ` ⚠️ ${partial.length} 个自然日存在交易所接口采集失败/缺口，相关日期需结合采集日志核验：${partial.slice(-8).join('、')}${partial.length>8?'…':''}` : " 当前采集未记录接口失败日期。") +
           ((B.errors||[]).length ? ` 采集异常 ${B.errors.length} 项；缺失数据不以前值填充。` : "");
         const el=document.getElementById("broadMarketChart");
+        const dailyEl=document.getElementById("broadMarketDailyChangeChart");
         if (window.echarts && el && B.dates && B.dates.length) {
           const chart=echarts.init(el);
           const series=(groups||[]).map(g=>({name:g.name,type:'line',showSymbol:false,smooth:false,data:g.series||[],connectNulls:false}));
           series.push({name:'七大系列合计',type:'line',showSymbol:false,smooth:false,lineStyle:{width:3,type:'solid'},data:B.total_series||[],connectNulls:false});
           chart.setOption({tooltip:{trigger:'axis'},legend:{type:'scroll'},grid:{left:55,right:25,top:45,bottom:55},xAxis:{type:'category',data:B.dates,axisLabel:{hideOverlap:true}},yAxis:{type:'value',name:'亿份'},dataZoom:[{type:'inside'},{type:'slider'}],series});
+
+          // 每日变化按前后两个有效披露日计算；缺失日保留 null，不当作 0。
+          const totalSeries = B.total_series || [];
+          let previousValid = null;
+          const dailyChanges = totalSeries.map(value => {
+            if (value == null || !Number.isFinite(Number(value))) return null;
+            const current = Number(value);
+            const change = previousValid == null ? null : Number((current - previousValid).toFixed(4));
+            previousValid = current;
+            return change;
+          });
+          if (dailyEl) {
+            const dailyChart = echarts.init(dailyEl);
+            dailyChart.setOption({
+              animation: false,
+              tooltip: {
+                trigger: 'axis',
+                axisPointer: { type: 'shadow' },
+                formatter: params => {
+                  const p = params && params[0];
+                  if (!p || p.value == null) return '';
+                  const v = Number(p.value);
+                  return `${p.axisValue}<br/>七大系列合计变化：<strong>${v > 0 ? '+' : ''}${v.toFixed(2)} 亿份</strong>`;
+                }
+              },
+              grid: { left: 58, right: 24, top: 16, bottom: 48 },
+              xAxis: { type: 'category', data: B.dates, axisLabel: { hideOverlap: true }, axisTick: { alignWithLabel: true } },
+              yAxis: { type: 'value', name: '亿份', scale: true, axisLabel: { formatter: value => Number(value).toFixed(0) } },
+              dataZoom: [{ type: 'inside' }, { type: 'slider', height: 18, bottom: 4 }],
+              series: [{
+                name: '每日份额变化', type: 'bar', data: dailyChanges, barMaxWidth: 12,
+                itemStyle: { color: params => params.value >= 0 ? '#ef4444' : '#22c55e', borderRadius: [2, 2, 0, 0] },
+                emphasis: { focus: 'series' }
+              }]
+            });
+            window.addEventListener('resize', () => dailyChart.resize());
+          }
           window.addEventListener('resize',()=>chart.resize());
-        } else { el.innerHTML='<div style="padding:40px;text-align:center;color:var(--text-muted)">等待首次全市场数据采集</div>'; }
+        } else {
+          if (el) el.innerHTML='<div style="padding:40px;text-align:center;color:var(--text-muted)">等待首次全市场数据采集</div>';
+          if (dailyEl) dailyEl.innerHTML='<div style="padding:24px;text-align:center;color:var(--text-muted)">暂无每日变化数据</div>';
+        }
       }
       renderBroadMarket();
 
